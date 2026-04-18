@@ -23,7 +23,13 @@ const Auth = (() => {
       sessionStorage.removeItem('poi_token');
     }
 
-    // GIS 버튼 렌더링
+    // 로그인 페이지가 아니면 login.html로 리다이렉트
+    if (!window.location.pathname.endsWith('login.html')) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    // GIS 버튼 렌더링 (login.html에서만)
     google.accounts.id.initialize({
       client_id: CONFIG.CLIENT_ID,
       callback: _handleCredential,
