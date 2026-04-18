@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node / clasp
+node_modules/
+npm-debug.log*
+.clasprc.json
+.clasp-dev.json
+
+# Env · Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Build · Temp
+dist/
+build/
+tmp/
+.cache/
+
+# Logs
+logs/
+*.log
+
+# Local data dumps
+*.local.json
+backup-*.json
