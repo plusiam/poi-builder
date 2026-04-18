@@ -2,8 +2,8 @@
 
 // ── 메타 ───────────────────────────────────────────────────
 
-function getMeta() {
-  requireRole_(arguments[1] || _callerEmail_(), 'viewer');
+function getMeta(params, email) {
+  requireRole_(email, 'viewer');
   const sheet = getSheet_('POI_Meta');
   const [headers, ...rows] = sheet.getDataRange().getValues();
   const map = {};
@@ -13,7 +13,8 @@ function getMeta() {
 
 // ── 상수 ───────────────────────────────────────────────────
 
-function getConstants() {
+function getConstants(params, email) {
+  requireRole_(email, 'viewer');
   return {
     themes: sheetToArray_('Constants_Themes'),
     keyConcepts: sheetToArray_('Constants_KeyConcepts'),
@@ -32,6 +33,19 @@ function getUnits(params, email) {
 function getUnit(unitId, email) {
   requireRole_(email, 'viewer');
   return findUnit_(unitId);
+}
+
+function getDashboard(params, email) {
+  requireRole_(email, 'admin');
+  const units = sheetToArray_('Units');
+  const total = units.length;
+  const byStatus = units.reduce((acc, u) => { acc[u.status] = (acc[u.status] || 0) + 1; return acc; }, {});
+  return { total, byStatus, units };
+}
+
+function getSnapshots(params, email) {
+  requireRole_(email, 'admin');
+  return sheetToArray_('Snapshots');
 }
 
 // ── UOI 생성 ───────────────────────────────────────────────

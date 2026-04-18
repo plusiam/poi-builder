@@ -1,27 +1,28 @@
 // POI Builder — GAS Web App 진입점
 // doGet/doPost 라우터
+// GAS는 파일 간 전역 스코프 공유 → 함수 직접 호출
 
 const ACTIONS_GET = {
-  meta: () => import_('meta').getMeta(),
-  units: () => import_('units').getUnits(),
-  unit: (p) => import_('units').getUnit(p.unitId),
-  constants: () => import_('units').getConstants(),
-  dashboard: (p, email) => import_('units').getDashboard(email),
-  changelog: (p) => import_('changelog').getChangelog(p.unitId),
-  snapshots: (p, email) => import_('units').getSnapshots(email),
-  export: (p, email) => import_('export').handleExport(p, email),
+  meta:       (p, email) => getMeta(p, email),
+  units:      (p, email) => getUnits(p, email),
+  unit:       (p, email) => getUnit(p.unitId, email),
+  constants:  (p, email) => getConstants(p, email),
+  dashboard:  (p, email) => getDashboard(p, email),
+  changelog:  (p, email) => getChangelog(p.unitId, email),
+  snapshots:  (p, email) => getSnapshots(p, email),
+  export:     (p, email) => handleExport(p, email),
 };
 
 const ACTIONS_POST = {
-  createUnit: (p, email) => import_('units').createUnit(p, email),
-  updateUnit: (p, email) => import_('units').updateUnit(p, email),
-  submitReview: (p, email) => import_('workflow').submitReview(p, email),
-  approveUnit: (p, email) => import_('workflow').approveUnit(p, email),
-  rejectUnit: (p, email) => import_('workflow').rejectUnit(p, email),
-  finalizeUnit: (p, email) => import_('workflow').finalizeUnit(p, email),
-  unlockUnit: (p, email) => import_('workflow').unlockUnit(p, email),
-  addComment: (p, email) => import_('units').addComment(p, email),
-  updateUser: (p, email) => import_('users').updateUser(p, email),
+  createUnit:   (p, email) => createUnit(p, email),
+  updateUnit:   (p, email) => updateUnit(p, email),
+  submitReview: (p, email) => submitReview(p, email),
+  approveUnit:  (p, email) => approveUnit(p, email),
+  rejectUnit:   (p, email) => rejectUnit(p, email),
+  finalizeUnit: (p, email) => finalizeUnit(p, email),
+  unlockUnit:   (p, email) => unlockUnit(p, email),
+  addComment:   (p, email) => addComment(p, email),
+  updateUser:   (p, email) => updateUser(p, email),
 };
 
 function doGet(e) {
@@ -71,9 +72,9 @@ function error_(code, message) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ── Hello World 테스트 엔드포인트 (Phase 0 완료 기준) ──────
+// ── 연결 테스트 (인증 불필요) ─────────────────────────────
 
-function doGetTest(e) {
+function doGetTest() {
   return ContentService
     .createTextOutput(JSON.stringify({ ok: true, data: { message: 'POI Builder GAS 동작 확인 완료' } }))
     .setMimeType(ContentService.MimeType.JSON);
