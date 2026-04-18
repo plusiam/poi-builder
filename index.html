@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POI Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/matrix.css">
+  <link rel="stylesheet" href="css/editor.css">
+  <style>
+    .page-section { display: none; }
+    .hero { padding: 2rem 0 1rem; }
+    .hero h2 { font-size: 1.25rem; margin-bottom: .25rem; }
+    .hero p { color: var(--text-secondary); font-size: .9rem; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .full-matrix { margin-top: 2rem; }
+    .full-matrix h2 { margin-bottom: .5rem; }
+    /* 에디터 모달 */
+    #editor-modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000; display: none; overflow-y: auto; }
+    #editor-modal.show { display: block; }
+    .editor-wrap { background: var(--surface); margin: 2rem auto; width: min(900px, 95vw); border-radius: var(--radius); box-shadow: var(--shadow-md); }
+    .editor-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
+    .editor-header h2 { margin: 0; }
+    .editor-body { padding: 1.5rem; }
+  </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header class="app-header">
+  <div class="inner">
+    <div class="brand">📋 <span>POI</span> Builder</div>
+    <nav>
+      <a href="#" class="active" onclick="showSection('home');return false">홈</a>
+      <a href="admin.html">관리자</a>
+    </nav>
+    <div id="header-user" class="user-chip" style="display:none" onclick="handleUserMenu()">
+      <img id="user-avatar" src="" alt="프로필" onerror="this.style.display='none'">
+      <span id="user-name"></span>
+      <span>▾</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <!-- 홈 섹션 -->
+  <div id="section-home" class="page-section">
+    <div class="hero">
+      <h2>안녕하세요 👋</h2>
+      <p>내 UOI를 작성하고 전체 POI 매트릭스를 확인하세요.</p>
+    </div>
+
+    <div class="section-header">
+      <h3>내 UOI</h3>
+      <button class="btn btn-primary btn-sm" onclick="openNewUOI()">+ 새 UOI</button>
+    </div>
+    <div id="my-uoi-grid" class="uoi-cards"></div>
+
+    <div class="full-matrix">
+      <div class="section-header">
+        <h2>전체 POI 매트릭스</h2>
+      </div>
+      <div class="matrix-scroll">
+        <div id="matrix-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UOI 편집 모달 -->
+<div id="editor-modal">
+  <div class="editor-wrap">
+    <div class="editor-header">
+      <h2 id="editor-title">UOI 편집</h2>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span id="ed-status" class="badge status-draft">초안</span>
+        <button class="btn btn-ghost btn-sm" onclick="UOIEditor.close()">✕ 닫기</button>
+      </div>
+    </div>
+
+    <div class="editor-body">
+      <!-- 충돌 알림 -->
+      <div id="conflict-banner" class="conflict-banner">
+        <div class="conflict-icon">⚠️</div>
+        <div>
+          <strong>편집 충돌</strong><br>
+          <small>다른 사용자가 이 UOI를 먼저 저장했습니다.</small>
+          <div class="conflict-actions">
+            <button class="btn btn-outline btn-sm" onclick="reloadUnit()">최신본 불러오기</button>
+            <button class="btn btn-danger btn-sm" onclick="forceOverwrite()">내 것으로 덮어쓰기</button>
+          </div>
+        </div>
+      </div>
+
+      <form id="editor-form" onsubmit="return false">
+        <!-- 탭 -->
+        <div class="tab-bar">
+          <button type="button" class="tab-btn active" data-tab="tab-basic"    onclick="switchTab('tab-basic')">기본 정보</button>
+          <button type="button" class="tab-btn"        data-tab="tab-inquiry"  onclick="switchTab('tab-inquiry')">탐구 설계</button>
+          <button type="button" class="tab-btn"        data-tab="tab-concepts" onclick="switchTab('tab-concepts')">개념 · 역량</button>
+          <button type="button" class="tab-btn"        data-tab="tab-etc"      onclick="switchTab('tab-etc')">기타</button>
+        </div>
+
+        <!-- 탭 1: 기본 정보 -->
+        <div id="tab-basic" class="tab-panel active">
+          <div class="editor-section">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+              <div class="form-group">
+                <label for="ed-grade">학년</label>
+                <select id="ed-grade">
+                  <option value="1">1학년</option><option value="2">2학년</option>
+                  <option value="3">3학년</option><option value="4">4학년</option>
+                  <option value="5">5학년</option><option value="6">6학년</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="ed-theme">Transdisciplinary Theme</label>
+                <select id="ed-theme">
+                  <option value="who_we_are">우리는 누구인가</option>
+                  <option value="where_we_are_in_place_and_time">우리는 어떤 시공간에 있는가</option>
+                  <option value="how_we_express_ourselves">우리는 어떻게 표현하는가</option>
+                  <option value="how_the_world_works">세상은 어떻게 작동하는가</option>
+                  <option value="how_we_organize_ourselves">우리는 어떻게 조직되는가</option>
+                  <option value="sharing_the_planet">지구를 공유하기</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="ed-unit-title">UOI 제목 <span style="color:var(--text-secondary);font-weight:400">(선택)</span></label>
+              <input type="text" id="ed-unit-title" placeholder="예: 가족의 다양한 모습" maxlength="100">
+            </div>
+
+            <div class="form-group">
+              <label for="ed-central-idea">Central Idea <span style="color:var(--danger)">*</span></label>
+              <textarea id="ed-central-idea" rows="3" placeholder="중심 아이디어를 진술문으로 작성하세요 (10~200자)" maxlength="200"
+                oninput="Validators.show('ed-central-idea', Validators.centralIdea(this.value))"></textarea>
+              <div id="ed-central-idea-error" class="field-error">최소 10자 이상, 진술문으로 작성하세요</div>
+              <div id="ed-central-idea-warn" class="field-warning">⚠️ 물음표로 끝나면 안 됩니다. 진술문으로 작성하세요.</div>
+              <div class="field-hint">예: 가족 구성원은 서로 다른 역할을 통해 공동체를 이룬다.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 탭 2: 탐구 설계 -->
+        <div id="tab-inquiry" class="tab-panel">
+          <div class="editor-section">
+            <div class="form-group">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.375rem">
+                <label>Lines of Inquiry <span style="color:var(--danger)">*</span> <span style="color:var(--text-secondary);font-weight:400">(3~4개)</span></label>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="UOIEditor.addLOI()">+ 추가</button>
+              </div>
+              <div id="loi-list" class="loi-list"></div>
+              <div id="loi-error" class="field-error">탐구 질문은 3~4개 작성하세요</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 탭 3: 개념 · 역량 -->
+        <div id="tab-concepts" class="tab-panel">
+          <div class="editor-section">
+            <div class="form-group">
+              <label>Key Concepts <span style="color:var(--danger)">*</span> <span style="color:var(--text-secondary);font-weight:400">(최대 3개)</span></label>
+              <div id="key-concepts-grid" class="checkbox-grid"></div>
+              <div id="kc-error" class="field-error">Key Concept은 최대 3개입니다</div>
+            </div>
+            <div class="form-group">
+              <label>Learner Profile <span style="color:var(--text-secondary);font-weight:400">(복수 선택)</span></label>
+              <div id="learner-profile-grid" class="checkbox-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 탭 4: 기타 -->
+        <div id="tab-etc" class="tab-panel">
+          <div class="editor-section">
+            <div class="form-group">
+              <label for="ed-action">Action <span style="color:var(--text-secondary);font-weight:400">(실천 기회)</span></label>
+              <textarea id="ed-action" rows="3" placeholder="학생들이 취할 수 있는 실천 행동을 자유롭게 서술하세요"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="ed-duration">기간 (주)</label>
+              <input type="number" id="ed-duration" min="1" max="12" placeholder="6" style="width:120px">
+            </div>
+            <div class="form-group">
+              <label for="ed-notes">교사 메모</label>
+              <textarea id="ed-notes" rows="3" placeholder="수업 준비 메모, 참고 자료 등"></textarea>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 하단 액션 바 -->
+    <div class="editor-actions">
+      <span class="save-hint" id="save-hint"></span>
+      <button class="btn btn-ghost" onclick="UOIEditor.close()">취소</button>
+      <div id="editor-action-btns" style="display:flex;gap:.5rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 사용자 메뉴 모달 -->
+<div id="user-menu-modal" class="modal-backdrop" onclick="this.classList.remove('show')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header"><h3>계정</h3><button class="modal-close" onclick="document.getElementById('user-menu-modal').classList.remove('show')">✕</button></div>
+    <div class="modal-body">
+      <p id="um-email" style="color:var(--text-secondary);margin-bottom:1rem"></p>
+      <button class="btn btn-danger" onclick="Auth.logout()">로그아웃</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/validators.js"></script>
+<script src="js/matrix-view.js"></script>
+<script src="js/uoi-editor.js"></script>
+<script src="js/main.js"></script>
+<script>
+  function handleUserMenu() {
+    const user = Auth.getUser();
+    if (user) document.getElementById('um-email').textContent = user.email;
+    document.getElementById('user-menu-modal').classList.add('show');
+  }
+  async function reloadUnit() {
+    document.getElementById('conflict-banner').classList.remove('show');
+    Utils.toast('최신본을 다시 불러옵니다...', 'info');
+    // 페이지 새로고침으로 간단히 처리
+    window.location.reload();
+  }
+  async function forceOverwrite() {
+    if (!confirm('주의: 다른 사용자의 변경사항이 사라집니다. 계속하시겠습니까?')) return;
+    // version을 현재 서버값으로 업데이트 후 재저장 (Phase 2에서 구현)
+    Utils.toast('덮어쓰기는 Phase 2에서 구현 예정입니다', 'warning');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로그인 — POI Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
+    .login-card { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-md); padding: 3rem 2.5rem; width: min(400px, 90vw); text-align: center; }
+    .logo { width: 60px; height: 60px; background: var(--primary); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.75rem; }
+    .login-card h1 { font-size: 1.5rem; margin-bottom: .375rem; }
+    .login-card .subtitle { color: var(--text-secondary); font-size: .9rem; margin-bottom: 2rem; }
+    .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+    .notice { font-size: .8rem; color: var(--text-secondary); line-height: 1.5; }
+    .error-msg { display: none; background: #fce8e6; color: var(--danger); border-radius: var(--radius); padding: .75rem 1rem; font-size: .875rem; margin-bottom: 1rem; }
+    .error-msg.show { display: block; }
+    #google-signin-btn { display: flex; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">📋</div>
+    <h1>POI Builder</h1>
+    <p class="subtitle">IB PYP 탐구 프로그램 구성 협업 도구<br>대구 남부초</p>
+
+    <div id="error-msg" class="error-msg"></div>
+    <div id="google-signin-btn"></div>
+
+    <div class="divider"></div>
+    <p class="notice">학교 Google 계정 또는 Gmail로 로그인하세요.<br>접근 권한은 수석교사가 부여합니다.</p>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    // GIS 초기화
+    window.onload = () => {
+      // 이미 로그인된 경우 리다이렉트
+      const saved = sessionStorage.getItem('poi_token');
+      if (saved) {
+        try {
+          const p = JSON.parse(saved);
+          if (p.exp * 1000 > Date.now()) { window.location.href = 'index.html'; return; }
+        } catch(_) {}
+      }
+
+      google.accounts.id.initialize({
+        client_id: CONFIG.CLIENT_ID,
+        callback: handleLogin,
+        auto_select: false,
+      });
+      google.accounts.id.renderButton(document.getElementById('google-signin-btn'), {
+        type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', locale: 'ko',
+      });
+    };
+
+    async function handleLogin(response) {
+      try {
+        const token = response.credential;
+        const payload = JSON.parse(atob(token.split('.')[1]));
+
+        // GAS에서 권한 체크 (users 시트 조회)
+        const url = new URL(CONFIG.GAS_URL);
+        url.searchParams.set('action', 'units');
+        url.searchParams.set('Authorization', `Bearer ${token}`);
+        const res = await fetch(url.toString(), { redirect: 'follow' });
+        const json = await res.json();
+
+        if (!json.ok && json.error?.code === 'FORBIDDEN') {
+          showError('접근 권한이 없습니다. 수석교사에게 문의하세요.');
+          return;
+        }
+
+        sessionStorage.setItem('poi_token', JSON.stringify({
+          token, user: { email: payload.email, name: payload.name, picture: payload.picture }, exp: payload.exp,
+        }));
+        window.location.href = 'index.html';
+      } catch(e) {
+        showError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+  </script>
+</body>
+</html>
