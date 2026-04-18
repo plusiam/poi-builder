@@ -85,3 +85,24 @@
 .conflict-banner.show { display: flex; }
 .conflict-banner .conflict-icon { font-size: 1.25rem; }
 .conflict-banner .conflict-actions { display: flex; gap: .5rem; margin-top: .5rem; flex-wrap: wrap; }
+
+/* ── 수석교사 피드백 탭 ──────────────────────────────────── */
+.feedback-empty {
+  text-align: center; padding: 2.5rem 1rem;
+  color: var(--text-secondary); font-size: .9rem;
+}
+.comment-thread-teacher { display: flex; flex-direction: column; gap: .875rem; }
+.teacher-comment-item {
+  background: #f0f6ff; border: 1px solid #c8dffe;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius); padding: .875rem 1rem;
+}
+.tci-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: .4rem; font-size: .78rem;
+}
+.tci-actor { font-weight: 600; color: var(--primary); }
+.tci-time  { color: var(--text-secondary); }
+.tci-body  { font-size: .88rem; line-height: 1.6; white-space: pre-wrap; }
+
+#tab-btn-feedback { position: relative; }

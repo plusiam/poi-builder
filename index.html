@@ -101,6 +101,7 @@
           <button type="button" class="tab-btn"        data-tab="tab-inquiry"  onclick="switchTab('tab-inquiry')">탐구 설계</button>
           <button type="button" class="tab-btn"        data-tab="tab-concepts" onclick="switchTab('tab-concepts')">개념 · 역량</button>
           <button type="button" class="tab-btn"        data-tab="tab-etc"      onclick="switchTab('tab-etc')">기타</button>
+          <button type="button" class="tab-btn"        data-tab="tab-feedback" onclick="switchTab('tab-feedback')" id="tab-btn-feedback">수석교사 피드백</button>
         </div>
 
         <!-- 탭 1: 기본 정보 -->
@@ -188,6 +189,16 @@
               <label for="ed-notes">교사 메모</label>
               <textarea id="ed-notes" rows="3" placeholder="수업 준비 메모, 참고 자료 등"></textarea>
             </div>
+          </div>
+        </div>
+        <!-- 탭 5: 수석교사 피드백 -->
+        <div id="tab-feedback" class="tab-panel">
+          <div class="editor-section" id="feedback-section">
+            <div class="feedback-empty" id="feedback-empty">
+              <div style="font-size:2rem;margin-bottom:.5rem">💬</div>
+              <div>수석교사의 피드백이 없습니다</div>
+            </div>
+            <div id="feedback-thread" class="comment-thread-teacher"></div>
           </div>
         </div>
       </form>
