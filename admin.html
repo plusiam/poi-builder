@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>관리자 — POI Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/matrix.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<!-- 사이드바 -->
+<aside class="admin-sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-title">📋 POI Builder</div>
+    <div class="brand-sub">수석교사 관리자</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" data-section="dashboard" onclick="showAdminSection('dashboard')">
+      <span class="icon">📊</span> 대시보드
+    </div>
+    <div class="nav-item" data-section="review" onclick="showAdminSection('review')">
+      <span class="icon">✅</span> UOI 검토
+    </div>
+    <div class="nav-item" data-section="export" onclick="showAdminSection('export')">
+      <span class="icon">📤</span> 내보내기
+    </div>
+    <div class="nav-item" data-section="users" onclick="showAdminSection('users')">
+      <span class="icon">👥</span> 사용자 관리
+    </div>
+    <div class="nav-item" data-section="snapshots" onclick="showAdminSection('snapshots')">
+      <span class="icon">📸</span> 스냅샷
+    </div>
+  </nav>
+  <div class="sidebar-footer">남부초 IB PYP · 2026</div>
+</aside>
+
+<!-- 메인 -->
+<main class="admin-main">
+  <!-- 상단 바 -->
+  <div class="admin-topbar">
+    <h1 id="section-title">대시보드</h1>
+    <div class="right">
+      <a href="index.html" class="btn btn-ghost btn-sm">← 교사 화면</a>
+      <div class="user-chip" onclick="Auth.logout()">
+        <img id="admin-avatar" src="" alt="" onerror="this.style.display='none'" style="width:24px;height:24px;border-radius:50%">
+        <span id="admin-user-name"></span>
+        <span style="font-size:.75rem;color:var(--text-secondary)">로그아웃</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-content">
+
+    <!-- ── 대시보드 ──────────────────────────────────────── -->
+    <div id="section-dashboard" class="admin-section">
+      <!-- KPI -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-total" id="kpi-total">
+          <div class="kpi-icon">📋</div>
+          <div><div class="kpi-label">전체 UOI</div><div class="kpi-value">—</div></div>
+        </div>
+        <div class="kpi-card kpi-final" id="kpi-final">
+          <div class="kpi-icon">✅</div>
+          <div><div class="kpi-label">확정 완료</div><div class="kpi-value">—</div></div>
+        </div>
+        <div class="kpi-card kpi-review" id="kpi-review">
+          <div class="kpi-icon">🔄</div>
+          <div><div class="kpi-label">검토 대기</div><div class="kpi-value">—</div></div>
+        </div>
+        <div class="kpi-card kpi-draft" id="kpi-draft">
+          <div class="kpi-icon">✏️</div>
+          <div><div class="kpi-label">초안 작성 중</div><div class="kpi-value">—</div></div>
+        </div>
+      </div>
+
+      <!-- 매트릭스 + 활동 피드 -->
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+            <h3 style="margin:0">전체 POI 매트릭스</h3>
+            <button class="btn btn-ghost btn-sm" onclick="loadAdminData()">↻ 새로고침</button>
+          </div>
+          <div class="card-body" style="padding:.75rem;overflow-x:auto">
+            <div id="admin-matrix"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3 style="margin:0">최근 활동 <span style="font-size:.75rem;color:var(--text-secondary);font-weight:400">(24시간)</span></h3></div>
+          <div class="card-body" style="padding:.75rem 1rem;max-height:360px;overflow-y:auto">
+            <div id="activity-feed"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 히트맵 -->
+      <div class="card">
+        <div class="card-header">
+          <h3 style="margin:0">Key Concepts 균형 히트맵
+            <span style="font-size:.78rem;font-weight:400;color:var(--text-secondary);margin-left:.5rem">빨강=미출현 ⚠️</span>
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="heatmap-wrap" id="heatmap-container">
+            <div style="color:var(--text-secondary)">로딩 중...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── UOI 검토 ──────────────────────────────────────── -->
+    <div id="section-review" class="admin-section">
+      <div class="review-layout">
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+            <h3 style="margin:0">UOI 목록</h3>
+            <div style="display:flex;gap:.5rem">
+              <select id="review-filter" onchange="filterReviewList()" class="btn btn-ghost btn-sm" style="padding:.3rem .5rem">
+                <option value="all">전체</option>
+                <option value="in_review">검토 요청</option>
+                <option value="approved">승인됨</option>
+                <option value="draft">초안</option>
+                <option value="finalized">확정</option>
+              </select>
+            </div>
+          </div>
+          <div id="review-list" class="review-list"></div>
+        </div>
+        <div id="review-panel" class="review-panel card">
+          <div class="panel-body" style="display:flex;align-items:center;justify-content:center;height:300px;color:var(--text-secondary)">
+            좌측에서 UOI를 선택하세요
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 내보내기 ──────────────────────────────────────── -->
+    <div id="section-export" class="admin-section">
+      <div class="export-options">
+        <h3>내보내기 범위</h3>
+        <div class="export-option-row">
+          <label><input type="radio" name="export-scope" value="all" checked> 전체 POI</label>
+          <label><input type="radio" name="export-scope" value="finalized"> 확정된 UOI만</label>
+          <label><input type="radio" name="export-scope" value="grade"> 학년별
+            <select id="export-grade" style="width:80px;margin-left:.25rem">
+              <option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option>
+              <option value="4">4학년</option><option value="5">5학년</option><option value="6">6학년</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="export-cards">
+        <div class="export-card" onclick="doExport('json')">
+          <div class="ec-icon">📦</div>
+          <div class="ec-title">JSON 백업</div>
+          <div class="ec-desc">전체 POI 구조를 JSON으로 저장. 다른 학교·다음 연도 템플릿으로 활용 가능.</div>
+          <div class="ec-badge">즉시 다운로드</div>
+        </div>
+        <div class="export-card" onclick="doExport('markdown')">
+          <div class="ec-icon">📝</div>
+          <div class="ec-title">Markdown</div>
+          <div class="ec-desc">Obsidian 옵시디언 볼트 연동. POI 전체를 마크다운 문서로 내보내기.</div>
+          <div class="ec-badge">즉시 다운로드</div>
+        </div>
+        <div class="export-card disabled" onclick="Utils.toast('PDF 내보내기는 Phase 3에서 구현 예정입니다','info')">
+          <div class="ec-icon">📄</div>
+          <div class="ec-title">PDF (공문용)</div>
+          <div class="ec-desc">교육청 보고용 공문 첨부 형식. 한글 폰트 포함 매트릭스 요약.</div>
+          <div class="ec-badge" style="background:#f1f3f4;color:#5f6368">Phase 3 예정</div>
+        </div>
+        <div class="export-card disabled" onclick="Utils.toast('Word 내보내기는 Phase 3에서 구현 예정입니다','info')">
+          <div class="ec-icon">📃</div>
+          <div class="ec-title">Word (docx)</div>
+          <div class="ec-desc">공문 첨부용 편집 가능 Word 파일. 학교 공문 서식 기반.</div>
+          <div class="ec-badge" style="background:#f1f3f4;color:#5f6368">Phase 3 예정</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 사용자 관리 ────────────────────────────────────── -->
+    <div id="section-users" class="admin-section">
+      <div class="add-user-form">
+        <h3>교사 추가 / 권한 변경</h3>
+        <div class="add-user-row">
+          <div class="form-group">
+            <label>이메일</label>
+            <input type="email" id="new-email" placeholder="teacher@gmail.com">
+          </div>
+          <div class="form-group">
+            <label>이름</label>
+            <input type="text" id="new-name" placeholder="홍길동">
+          </div>
+          <div class="form-group">
+            <label>역할</label>
+            <select id="new-role">
+              <option value="editor">editor (교사)</option>
+              <option value="reviewer">reviewer (검토자)</option>
+              <option value="viewer">viewer (열람만)</option>
+              <option value="admin">admin (수석교사)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>담당 학년</label>
+            <select id="new-grade">
+              <option value="">미지정</option>
+              <option value="1">1학년</option><option value="2">2학년</option>
+              <option value="3">3학년</option><option value="4">4학년</option>
+              <option value="5">5학년</option><option value="6">6학년</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" onclick="addUser()">추가</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3 style="margin:0">등록된 교사</h3></div>
+        <div style="overflow-x:auto">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>이메일</th><th>이름</th><th>역할</th><th>담당 학년</th><th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="user-table-body">
+              <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-secondary)">로딩 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 스냅샷 ─────────────────────────────────────────── -->
+    <div id="section-snapshots" class="admin-section">
+      <div id="snapshot-container"></div>
+    </div>
+
+  </div><!-- /.admin-content -->
+</main>
+
+<script src="js/config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/matrix-view.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/admin.js"></script>
+<script>
+  function filterReviewList() {
+    const filter = document.getElementById('review-filter')?.value;
+    const items  = document.querySelectorAll('.review-item');
+    items.forEach(el => {
+      const badge = el.querySelector('.badge');
+      const show  = filter === 'all' || (badge && badge.classList.contains(`status-${filter === 'in_review' ? 'review' : filter === 'approved' ? 'approved' : filter}`));
+      el.style.display = show ? '' : 'none';
+    });
+  }
+</script>
+</body>
+</html>
