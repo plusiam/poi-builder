@@ -161,22 +161,22 @@
           <div class="ec-desc">전체 POI 구조를 JSON으로 저장. 다른 학교·다음 연도 템플릿으로 활용 가능.</div>
           <div class="ec-badge">즉시 다운로드</div>
         </div>
+        <div class="export-card" onclick="doExport('csv')">
+          <div class="ec-icon">📊</div>
+          <div class="ec-title">CSV (엑셀)</div>
+          <div class="ec-desc">엑셀·한글에서 바로 열 수 있는 표 형식. LOI·KC·LP 모든 항목 포함. 교육청 제출 편집용.</div>
+          <div class="ec-badge">즉시 다운로드</div>
+        </div>
         <div class="export-card" onclick="doExport('markdown')">
           <div class="ec-icon">📝</div>
-          <div class="ec-title">Markdown</div>
-          <div class="ec-desc">Obsidian 옵시디언 볼트 연동. POI 전체를 마크다운 문서로 내보내기.</div>
+          <div class="ec-title">Markdown (Obsidian)</div>
+          <div class="ec-desc">옵시디언 볼트 연동. YAML frontmatter + LOI·KC·LP·Action 전체 포함 마크다운.</div>
           <div class="ec-badge">즉시 다운로드</div>
         </div>
         <div class="export-card disabled" onclick="Utils.toast('PDF 내보내기는 Phase 3에서 구현 예정입니다','info')">
           <div class="ec-icon">📄</div>
           <div class="ec-title">PDF (공문용)</div>
           <div class="ec-desc">교육청 보고용 공문 첨부 형식. 한글 폰트 포함 매트릭스 요약.</div>
-          <div class="ec-badge" style="background:#f1f3f4;color:#5f6368">Phase 3 예정</div>
-        </div>
-        <div class="export-card disabled" onclick="Utils.toast('Word 내보내기는 Phase 3에서 구현 예정입니다','info')">
-          <div class="ec-icon">📃</div>
-          <div class="ec-title">Word (docx)</div>
-          <div class="ec-desc">공문 첨부용 편집 가능 Word 파일. 학교 공문 서식 기반.</div>
           <div class="ec-badge" style="background:#f1f3f4;color:#5f6368">Phase 3 예정</div>
         </div>
       </div>

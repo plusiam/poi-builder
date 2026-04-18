@@ -250,15 +250,40 @@ function renderExport() {
 async function doExport(format) {
   const scopeEl = document.querySelector('input[name="export-scope"]:checked');
   const scope   = scopeEl?.value || 'all';
+  const grade   = document.getElementById('export-grade')?.value;
+
+  const params = { format, scope };
+  if (scope === 'grade' && grade) params.grade = grade;
+
   Utils.toast(`${format.toUpperCase()} 내보내기 준비 중...`, 'info');
+
   try {
-    const data   = await API.get('export', { format, scope });
-    const blob   = new Blob([typeof data === 'string' ? data : JSON.stringify(data, null, 2)],
-      { type: format === 'json' ? 'application/json' : 'text/markdown' });
-    const url    = URL.createObjectURL(blob);
-    const a      = document.createElement('a');
-    a.href       = url;
-    a.download   = `poi-builder-export-${new Date().toISOString().slice(0, 10)}.${format === 'json' ? 'json' : 'md'}`;
+    const data = await API.get('export', params);
+
+    let content, mime, ext;
+    if (format === 'json') {
+      content = JSON.stringify(data, null, 2);
+      mime = 'application/json';
+      ext  = 'json';
+    } else if (format === 'markdown') {
+      content = data.markdown || '';
+      mime = 'text/markdown';
+      ext  = 'md';
+    } else if (format === 'csv') {
+      content = data.csv || '';
+      mime = 'text/csv;charset=utf-8';
+      ext  = 'csv';
+    }
+
+    const scopeTag = scope === 'grade' ? `${grade}학년` : scope;
+    const dateTag  = new Date().toISOString().slice(0, 10);
+
+    // BOM 추가: 엑셀에서 한글 깨짐 방지
+    const blob = new Blob(['\uFEFF' + content], { type: mime });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `poi-${scopeTag}-${dateTag}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
     Utils.toast('내보내기 완료', 'success');
