@@ -1,0 +1,16 @@
+{
+  "scriptId": "1JGX29egeLp9oGV6jp13OgR_05IZKr68Xc_zcdGSWwe1YvEWtct3PBH09",
+  "rootDir": "/Users/yeohanki/Documents/Inbox/POI-Builder/poi-builder/gas",
+  "scriptExtensions": [
+    ".js",
+    ".gs"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [],
+  "skipSubdirectories": false
+}
