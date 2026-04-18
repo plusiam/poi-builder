@@ -22,13 +22,17 @@ function appendChangelog_(entry) {
 }
 
 function appendComment_(entry) {
-  const sheet = getSheet_('Comments');
+  const sheet = getSheet_('Changelog');
   sheet.appendRow([
     uuid_(),
     entry.unit_id,
     now_(),
     entry.author_email,
+    'comment',
+    '',
+    '',
     entry.body,
+    '',
   ]);
 }
 
