@@ -243,6 +243,33 @@ function resolveComment(params, email) {
   return { comment_id: params.comment_id, resolved: next, resolved_by: next ? email : '', resolved_at: next ? ts : '' };
 }
 
+// ── 내부 헬퍼: workflow.js에서 호출용 ─────────────────────
+//
+// approve / reject 시 코멘트가 함께 들어오면 본 헬퍼로 Comments 시트에 단일 행을 추가한다.
+// 신규 v3.1 14컬럼 스키마에 안전하도록 buildCommentRow_ 사용. 멘션·반응 없음.
+function appendComment_(entry) {
+  const sheet = getSheet_('Comments');
+  const map = headerMap_(sheet);
+  const ts = now_();
+  const row = buildCommentRow_(map, {
+    comment_id: uuid_(),
+    unit_id: entry.unit_id,
+    parent_id: '',
+    anchor_field: entry.anchor_field || 'unit',
+    author_email: entry.author_email,
+    body: entry.body || '',
+    mentions: '[]',
+    reactions: '{}',
+    resolved: false,
+    resolved_by: '',
+    resolved_at: '',
+    created_at: ts,
+    updated_at: ts,
+    deleted: false,
+  });
+  sheet.appendRow(row);
+}
+
 // ── 헬퍼 ───────────────────────────────────────────────────
 
 function findCommentRow_(comment_id) {

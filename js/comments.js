@@ -24,6 +24,47 @@ const Comments = (() => {
     _bindUi();
   }
 
+  // 단원의 실제 LOI 개수에 맞춰 댓글 anchor 셀렉트를 재구성한다.
+  // uoi-editor가 _renderLOI 호출 시점마다 호출.
+  function syncAnchorOptions(loiCount) {
+    const composer = document.getElementById('fb-anchor');
+    if (composer) _rebuildAnchorSelect(composer, loiCount, false);
+
+    const filter = document.getElementById('fb-anchor-filter');
+    if (filter) _rebuildAnchorFilter(filter);
+  }
+
+  function _rebuildAnchorSelect(sel, loiCount, includeAllOption) {
+    const prev = sel.value;
+    const items = [];
+    items.push({ value: 'unit',         label: '전체 단원' });
+    items.push({ value: 'central_idea', label: 'Central Idea' });
+    const n = Math.max(0, Math.min(4, parseInt(loiCount) || 0));
+    for (let i = 0; i < n; i++) items.push({ value: `loi:${i}`, label: `LOI ${i + 1}` });
+    items.push({ value: 'key_concepts', label: 'Key Concepts' });
+    items.push({ value: 'subject_links', label: '연계 교과' });
+    items.push({ value: 'action',        label: 'Action' });
+    items.push({ value: 'retro',         label: '회고 (확정 후)' });
+
+    sel.innerHTML = items.map(it => `<option value="${it.value}">${it.label}</option>`).join('');
+    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+  }
+
+  function _rebuildAnchorFilter(sel) {
+    // 필터는 그룹 단위(접두사)로 묶이므로 LOI는 단일 'loi' 옵션 유지
+    const prev = sel.value;
+    sel.innerHTML = `
+      <option value="all">모든 필드</option>
+      <option value="unit">전체 단원</option>
+      <option value="central_idea">Central Idea</option>
+      <option value="loi">Lines of Inquiry</option>
+      <option value="key_concepts">Key Concepts</option>
+      <option value="subject_links">연계 교과</option>
+      <option value="action">Action</option>
+      <option value="retro">회고</option>`;
+    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+  }
+
   function _bindUi() {
     document.querySelectorAll('.feedback-filters .chip').forEach(btn => {
       btn.onclick = () => {
@@ -293,5 +334,5 @@ const Comments = (() => {
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  return { init, load, submit, react, toggleResolve, remove, startEdit };
+  return { init, load, submit, react, toggleResolve, remove, startEdit, syncAnchorOptions };
 })();

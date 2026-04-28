@@ -136,14 +136,16 @@ body.matrix-dragging .matrix-table.matrix-draggable .uoi-cell:hover {
   cursor: pointer;
   opacity: .9;
 }
+/* 잠금 카드 — background-color는 인라인(테마색)으로 유지하고
+   background-image로 사선 패턴을 합성한다 (background 단축속성 사용 금지) */
 .uoi-card-mini.uoi-locked {
-  background: repeating-linear-gradient(
+  background-image: repeating-linear-gradient(
     -45deg,
-    rgba(0,0,0,.02),
-    rgba(0,0,0,.02) 6px,
-    transparent 6px,
-    transparent 12px
-  ), inherit;
+    rgba(0, 0, 0, .07),
+    rgba(0, 0, 0, .07) 6px,
+    rgba(0, 0, 0, 0)   6px,
+    rgba(0, 0, 0, 0)  12px
+  );
 }
 
 /* 자물쇠 배지 */

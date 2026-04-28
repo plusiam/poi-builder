@@ -78,7 +78,8 @@ const MatrixView = (() => {
       THEMES.forEach(theme => {
         const td = tr.insertCell();
         td.className = 'uoi-cell';
-        td.style.background = Utils.themeColor(theme.id);
+        // background-color로 지정해 CSS의 background-image(잠금 패턴 등)와 합성 가능하게 함
+        td.style.backgroundColor = Utils.themeColor(theme.id);
 
         // 드롭 가능 여부 마커
         td.dataset.grade = grade;
@@ -130,7 +131,7 @@ const MatrixView = (() => {
     const concepts = Utils.parseJSON(u.key_concepts, []);
     const div = document.createElement('div');
     div.className = 'uoi-card-mini';
-    div.style.background = Utils.themeColor(u.theme_id);
+    div.style.backgroundColor = Utils.themeColor(u.theme_id);
 
     // 메타데이터 (드래그·권한·낙관적 락)
     div.dataset.unitId = u.unit_id || '';

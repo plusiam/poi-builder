@@ -105,6 +105,11 @@ const UOIEditor = (() => {
         <button type="button" class="remove-btn" onclick="UOIEditor.removeLOI(${i})" ${lines.length <= 3 ? 'disabled' : ''}>×</button>`;
       container.appendChild(row);
     });
+
+    // 팀 피드백 anchor 셀렉트도 LOI 개수에 맞춰 갱신
+    if (typeof Comments !== 'undefined' && Comments.syncAnchorOptions) {
+      Comments.syncAnchorOptions(lines.length);
+    }
   }
 
   function _renderKeyConcepts(selected) {
