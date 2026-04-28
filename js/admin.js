@@ -233,6 +233,25 @@ async function reviewAction(type, unitId) {
     await loadAdminData();
     if (_selectedUnit) selectReviewUnit(unitId);
   } catch (e) {
+    // 확정 단계의 최종 검증 실패는 별도 모달로 표시 (여러 위반 한 번에 보여주기)
+    if (type === 'finalize' && e.code === 'VALIDATION') {
+      const force = confirm(
+        `❌ 최종 확정 불가\n\n${e.message}\n\n` +
+        `긴급 우회(force)로 검증을 무시하고 강제 확정하시겠습니까?\n` +
+        `(IB PYP 인증 요건 위반 가능 — 권장하지 않음)`
+      );
+      if (force) {
+        try {
+          await API.post('finalizeUnit', { unit_id: unitId, force: true });
+          Utils.toast('⚠️ 강제 확정 완료 (검증 우회)', 'warning');
+          await loadAdminData();
+          if (_selectedUnit) selectReviewUnit(unitId);
+        } catch (e2) {
+          Utils.toast('강제 확정 실패: ' + e2.message, 'error');
+        }
+      }
+      return;
+    }
     Utils.toast(`${label} 실패: ` + e.message, 'error');
   }
 }
