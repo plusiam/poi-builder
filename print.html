@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>POI Builder — 인쇄 미리보기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/print.css">
+</head>
+<body>
+
+<!-- 화면 전용 툴바 (인쇄 시 숨겨짐) -->
+<div class="print-toolbar" id="print-toolbar">
+  <div class="pt-info">
+    <strong id="pt-title">POI Builder — 인쇄 미리보기</strong>
+    <span id="pt-meta" class="pt-meta"></span>
+  </div>
+  <div class="pt-actions">
+    <button class="btn btn-ghost btn-sm" onclick="window.close()">닫기</button>
+    <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ 인쇄 / PDF로 저장</button>
+  </div>
+</div>
+
+<!-- 로딩/에러 상태 -->
+<div id="print-loading" class="print-loading">
+  <div class="spinner"></div>
+  <p>단원을 불러오는 중…</p>
+</div>
+
+<!-- 인쇄 본문 -->
+<main id="print-root" class="print-root" style="display:none">
+  <!-- 표지 -->
+  <header class="print-cover">
+    <div class="cover-school" id="cover-school">—</div>
+    <h1 class="cover-title">Programme of Inquiry</h1>
+    <div class="cover-year" id="cover-year">—</div>
+    <div class="cover-meta">
+      <div><span class="cl">출력 일시</span> <span id="cover-printed-at">—</span></div>
+      <div><span class="cl">범위</span> <span id="cover-scope">—</span></div>
+      <div><span class="cl">단원 수</span> <span id="cover-count">—</span></div>
+    </div>
+  </header>
+
+  <!-- 매트릭스 요약 -->
+  <section class="print-section">
+    <h2 class="print-h2">전체 매트릭스</h2>
+    <table class="print-matrix" id="print-matrix"></table>
+  </section>
+
+  <!-- 단원별 상세 -->
+  <section class="print-section" id="print-units"></section>
+</main>
+
+<script src="js/config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="js/auth.js"></script>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// 인쇄 미리보기 (v3.3, Phase 4)
+// query string: ?scope=all|finalized|grade&grade=N
+// ═══════════════════════════════════════════════════════════
+
+const THEMES = [
+  { id: 'who_we_are',                        name: '우리는 누구인가' },
+  { id: 'where_we_are_in_place_and_time',    name: '우리는 어떤 시공간에 있는가' },
+  { id: 'how_we_express_ourselves',           name: '우리는 어떻게 표현하는가' },
+  { id: 'how_the_world_works',                name: '세상은 어떻게 작동하는가' },
+  { id: 'how_we_organize_ourselves',          name: '우리는 어떻게 조직되는가' },
+  { id: 'sharing_the_planet',                 name: '지구를 공유하기' },
+];
+const GRADES = [1, 2, 3, 4, 5, 6];
+
+const STATUS_KO = {
+  draft: '초안', in_review: '검토 요청', approved: '승인',
+  finalized: '확정', archived: '보관',
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  // 인쇄 페이지는 로그인된 토큰으로 동작 (sessionStorage)
+  Auth.init(onPrintReady);
+});
+
+async function onPrintReady() {
+  const params = new URLSearchParams(location.search);
+  const scope  = params.get('scope') || 'all';
+  const grade  = params.get('grade');
+
+  try {
+    const [units, meta, constants] = await Promise.all([
+      API.get('units'),
+      API.get('meta'),
+      API.get('constants'),
+    ]);
+
+    let filtered = units || [];
+    if (scope === 'finalized') filtered = filtered.filter(u => u.status === 'finalized');
+    if (scope === 'archived')  filtered = filtered.filter(u => u.status === 'archived');
+    if (scope === 'grade' && grade) filtered = filtered.filter(u => parseInt(u.grade) === parseInt(grade));
+
+    renderCover({ scope, grade, count: filtered.length, meta: meta?.[0] || {} });
+    renderMatrix(filtered);
+    renderUnits(filtered, constants);
+
+    document.getElementById('print-loading').style.display = 'none';
+    document.getElementById('print-root').style.display = 'block';
+
+    // 자동 인쇄 다이얼로그는 띄우지 않음 — 사용자가 검토 후 직접 누르도록
+  } catch (e) {
+    document.getElementById('print-loading').innerHTML =
+      `<p style="color:#c5221f">로드 실패: ${e.message || ''}</p>
+       <button class="btn btn-ghost btn-sm" onclick="window.close()">닫기</button>`;
+  }
+}
+
+function renderCover({ scope, grade, count, meta }) {
+  document.getElementById('cover-school').textContent = meta.school_name || 'POI Builder';
+  document.getElementById('cover-year').textContent   = meta.year ? `${meta.year}학년도` : '';
+  document.getElementById('cover-printed-at').textContent = new Date().toLocaleString('ko-KR');
+  document.getElementById('cover-count').textContent = count;
+
+  let scopeLabel;
+  if (scope === 'finalized')      scopeLabel = '확정된 단원만';
+  else if (scope === 'archived')  scopeLabel = '아카이브된 단원만';
+  else if (scope === 'grade')     scopeLabel = `${grade}학년만`;
+  else                            scopeLabel = '전체 POI';
+  document.getElementById('cover-scope').textContent = scopeLabel;
+
+  document.getElementById('pt-meta').textContent =
+    `${meta.school_name || ''} · ${meta.year || ''} · ${scopeLabel} · ${count}단원`;
+  document.title = `POI ${meta.year || ''} ${scopeLabel} — 인쇄`;
+}
+
+function renderMatrix(units) {
+  const table = document.getElementById('print-matrix');
+  // 인덱스
+  const idx = {};
+  units.forEach(u => {
+    const k = `${u.grade}_${u.theme_id}`;
+    if (!idx[k]) idx[k] = [];
+    idx[k].push(u);
+  });
+
+  let html = '<thead><tr><th>학년</th>';
+  THEMES.forEach(t => html += `<th>${t.name}</th>`);
+  html += '</tr></thead><tbody>';
+
+  GRADES.forEach(g => {
+    html += `<tr><th class="grade">${g}학년</th>`;
+    THEMES.forEach(t => {
+      const list = idx[`${g}_${t.id}`] || [];
+      html += '<td>';
+      if (list.length === 0) {
+        html += '<span class="empty">—</span>';
+      } else {
+        html += list.map(u =>
+          `<div class="cell-card">
+             <div class="cc-title">${esc(u.title || u.central_idea || '')}</div>
+             <div class="cc-status">${STATUS_KO[u.status] || u.status}</div>
+           </div>`
+        ).join('');
+      }
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function renderUnits(units, constants) {
+  const root = document.getElementById('print-units');
+  if (!units.length) {
+    root.innerHTML = '<div class="empty-state"><p>출력할 단원이 없습니다.</p></div>';
+    return;
+  }
+
+  // 학년 → 주제 순 정렬
+  const sorted = [...units].sort((a, b) => {
+    const ga = parseInt(a.grade), gb = parseInt(b.grade);
+    if (ga !== gb) return ga - gb;
+    const ta = THEMES.findIndex(t => t.id === a.theme_id);
+    const tb = THEMES.findIndex(t => t.id === b.theme_id);
+    return ta - tb;
+  });
+
+  const kcMap = {};
+  (constants?.keyConcepts || []).forEach(c => { kcMap[c.id] = c; });
+  const lpMap = {};
+  (constants?.learnerProfile || []).forEach(p => { lpMap[p.id] = p; });
+
+  root.innerHTML = `<h2 class="print-h2">단원별 상세</h2>` + sorted.map(u => unitCard(u, kcMap, lpMap)).join('');
+}
+
+function unitCard(u, kcMap, lpMap) {
+  const themeName = THEMES.find(t => t.id === u.theme_id)?.name || u.theme_id;
+  const lois = parseJSON(u.lines_of_inquiry, []);
+  const kcs  = parseJSON(u.key_concepts, []);
+  const rcs  = parseJSON(u.related_concepts, []);
+  const lps  = parseJSON(u.learner_profile, []);
+  const subs = parseJSON(u.subject_links, []);
+
+  const kcHtml = kcs.map(id => {
+    const c = kcMap[id];
+    return c ? `${c.name_ko} <span class="muted">(${c.name_en})</span>` : id;
+  }).join(' · ') || '—';
+
+  const lpHtml = lps.map(id => {
+    const p = lpMap[id];
+    return p ? p.name_ko : id;
+  }).join(' · ') || '—';
+
+  return `
+    <article class="unit-card">
+      <header class="uc-head">
+        <div class="uc-meta">
+          <span class="uc-grade">${u.grade}학년</span>
+          <span class="uc-theme">${esc(themeName)}</span>
+          <span class="uc-status">${STATUS_KO[u.status] || u.status}</span>
+        </div>
+        <h3 class="uc-title">${esc(u.title || '(제목 없음)')}</h3>
+      </header>
+
+      <table class="uc-table">
+        <tr><th>중심 아이디어 (Central Idea)</th>
+            <td>${esc(u.central_idea || '')}</td></tr>
+        <tr><th>탐구 노선 (Lines of Inquiry)</th>
+            <td>
+              ${lois.length
+                ? `<ol class="loi-ol">${lois.map(l => `<li>${esc(l)}</li>`).join('')}</ol>`
+                : '—'}
+            </td></tr>
+        <tr><th>핵심 개념 (Key Concepts)</th>
+            <td>${kcHtml}</td></tr>
+        ${rcs.length ? `<tr><th>관련 개념 (Related)</th><td>${rcs.map(esc).join(' · ')}</td></tr>` : ''}
+        <tr><th>학습자상 (Learner Profile)</th><td>${lpHtml}</td></tr>
+        ${subs.length ? `<tr><th>2022 개정 성취기준</th><td>${subs.map(esc).join(' · ')}</td></tr>` : ''}
+        ${u.action ? `<tr><th>실천 (Action)</th><td>${esc(u.action)}</td></tr>` : ''}
+        ${u.duration_weeks ? `<tr><th>기간</th><td>${u.duration_weeks}주</td></tr>` : ''}
+      </table>
+
+      <footer class="uc-foot">
+        <span>담당: ${esc((u.owner_email || '').split('@')[0] || '—')}</span>
+        <span>최종 수정: ${formatDate(u.updated_at)}</span>
+      </footer>
+    </article>`;
+}
+
+function parseJSON(v, fb) {
+  if (v == null || v === '') return fb;
+  if (typeof v !== 'string') return v;
+  try { return JSON.parse(v); } catch (_) { return fb; }
+}
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' :
+    `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+</script>
+
+</body>
+</html>

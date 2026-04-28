@@ -24,6 +24,7 @@ const ACTIONS_POST = {
   rejectUnit:     (p, email) => rejectUnit(p, email),
   finalizeUnit:   (p, email) => finalizeUnit(p, email),
   unlockUnit:     (p, email) => unlockUnit(p, email),
+  archiveYear:    (p, email) => archiveYear(p, email),  // v3.3 — Phase 4 연도 롤오버
   // 댓글 시스템 (v3.1, Phase 2-A)
   addComment:     (p, email) => addComment(p, email),
   updateComment:  (p, email) => updateComment(p, email),

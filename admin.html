@@ -173,11 +173,11 @@
           <div class="ec-desc">옵시디언 볼트 연동. YAML frontmatter + LOI·KC·LP·Action 전체 포함 마크다운.</div>
           <div class="ec-badge">즉시 다운로드</div>
         </div>
-        <div class="export-card disabled" onclick="Utils.toast('PDF 내보내기는 Phase 3에서 구현 예정입니다','info')">
-          <div class="ec-icon">📄</div>
-          <div class="ec-title">PDF (공문용)</div>
-          <div class="ec-desc">교육청 보고용 공문 첨부 형식. 한글 폰트 포함 매트릭스 요약.</div>
-          <div class="ec-badge" style="background:#f1f3f4;color:#5f6368">Phase 3 예정</div>
+        <div class="export-card" onclick="openPrintView()">
+          <div class="ec-icon">🖨️</div>
+          <div class="ec-title">인쇄 / PDF (공문용)</div>
+          <div class="ec-desc">선택한 범위의 단원을 인쇄용 레이아웃으로 새 창에서 열고, 브라우저 인쇄 → "PDF로 저장"으로 공문용 파일 생성.</div>
+          <div class="ec-badge">새 창 인쇄 보기</div>
         </div>
       </div>
     </div>
@@ -239,6 +239,50 @@
 
     <!-- ── 스냅샷 ─────────────────────────────────────────── -->
     <div id="section-snapshots" class="admin-section">
+      <!-- 연도 롤오버 (v3.3, Phase 4) -->
+      <div class="card rollover-card" id="rollover-card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+          <h3 style="margin:0">📅 학년도 롤오버 (일괄 아카이브)</h3>
+          <span class="rollover-current">현재 연도: <strong id="rollover-current-year">—</strong></span>
+        </div>
+        <div class="rollover-body">
+          <p class="rollover-desc">
+            새 학년도로 전환할 때 한 번만 실행하세요. 기존 단원 전체를
+            <strong>스냅샷으로 보관</strong>하고 <strong>archived 상태로 잠금</strong>한 뒤,
+            <code>POI_Meta.year</code>를 새 연도로 갱신합니다. 새 연도부터는 빈 매트릭스에서 단원을 새로 만들면 됩니다.
+          </p>
+
+          <div class="rollover-row">
+            <div class="form-group">
+              <label for="rollover-new-year">새 학년도</label>
+              <input type="number" id="rollover-new-year" min="2024" max="2099" placeholder="예: 2027" style="width:120px">
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <button class="btn btn-outline" onclick="previewArchiveYear()">미리보기 (영향 단원 수 확인)</button>
+            </div>
+          </div>
+
+          <div id="rollover-preview" class="rollover-preview" style="display:none">
+            <div class="rollover-summary">
+              <div><span class="rs-label">전환:</span> <strong id="rs-from">—</strong> → <strong id="rs-to">—</strong></div>
+              <div><span class="rs-label">아카이브 대상:</span> <strong id="rs-count">—</strong> 단원</div>
+            </div>
+            <div class="rollover-preview-list" id="rs-preview-list"></div>
+            <div class="rollover-warn">
+              ⚠️ 이 작업은 <strong>되돌릴 수 없습니다</strong>. 모든 단원이 archived + 잠금 처리되며,
+              스냅샷 시트에 사본이 보관됩니다. 정말 진행할까요?
+            </div>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end">
+              <button class="btn btn-ghost" onclick="cancelArchiveYear()">취소</button>
+              <button class="btn btn-danger" onclick="executeArchiveYear()" id="rs-execute-btn">
+                예, 학년도를 전환합니다
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="snapshot-container"></div>
     </div>
 

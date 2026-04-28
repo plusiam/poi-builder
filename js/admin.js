@@ -341,15 +341,200 @@ async function addUser() {
   }
 }
 
-// ── 스냅샷 ───────────────────────────────────────────────
+// ── 스냅샷 + 연도 롤오버 (v3.3, Phase 4) ────────────────
 
-function renderSnapshots() {
+let _archivePreview = null;
+
+async function renderSnapshots() {
+  // 현재 연도 표시
+  await _refreshCurrentYear();
+
+  // 스냅샷 목록 (간단 버전 — diff 비교는 Phase 4 후속에서 확장)
   const container = document.getElementById('snapshot-container');
   if (!container) return;
-  container.innerHTML = `
-    <div class="empty-state">
-      <div class="icon">📸</div>
-      <p>스냅샷 관리 기능은 Phase 4에서 구현 예정입니다.</p>
-      <p style="font-size:.85rem;color:var(--text-secondary)">확정(finalize) 시 자동으로 Snapshots 시트에 저장됩니다.</p>
-    </div>`;
+  try {
+    const snaps = await API.get('snapshots');
+    if (!Array.isArray(snaps) || snaps.length === 0) {
+      container.innerHTML = `
+        <div class="card" style="margin-top:1rem">
+          <div class="card-header"><h3 style="margin:0">📸 스냅샷</h3></div>
+          <div class="empty-state">
+            <p>아직 보관된 스냅샷이 없습니다.</p>
+            <p style="font-size:.85rem;color:var(--text-secondary)">확정(finalize) 또는 학년도 롤오버 시 자동 저장됩니다.</p>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const sorted = [...snaps].sort((a, b) =>
+      String(b.snapshot_at || '').localeCompare(String(a.snapshot_at || '')));
+
+    container.innerHTML = `
+      <div class="card" style="margin-top:1rem">
+        <div class="card-header"><h3 style="margin:0">📸 스냅샷 (${snaps.length})</h3></div>
+        <div style="overflow-x:auto">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>저장 시각</th><th>저장자</th><th>학년</th><th>주제</th>
+                <th>제목</th><th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sorted.slice(0, 100).map(s => `
+                <tr>
+                  <td>${Utils.formatDate(s.snapshot_at)}</td>
+                  <td>${(s.snapshot_by || '').split('@')[0]}</td>
+                  <td>${s.grade}</td>
+                  <td>${THEMES_KO[s.theme_id] || s.theme_id}</td>
+                  <td>${s.title || '(제목 없음)'}</td>
+                  <td><span class="badge ${Utils.statusClass(s.status)}">${Utils.statusLabel(s.status)}</span></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        ${sorted.length > 100 ? `<p style="text-align:center;font-size:.85rem;color:var(--text-secondary);padding:.5rem">최근 100개만 표시</p>` : ''}
+      </div>`;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><p>스냅샷 로드 실패: ${e.message}</p></div>`;
+  }
+}
+
+async function _refreshCurrentYear() {
+  const el = document.getElementById('rollover-current-year');
+  if (!el) return;
+  try {
+    const meta = await API.get('meta');
+    const year = (Array.isArray(meta) && meta[0] && meta[0].year) ? meta[0].year : '—';
+    el.textContent = year;
+    // 새 연도 입력 기본값 = current+1
+    const input = document.getElementById('rollover-new-year');
+    if (input && !input.value && /^\d{4}$/.test(String(year))) {
+      input.value = String(parseInt(year) + 1);
+    }
+  } catch (_) {
+    el.textContent = '—';
+  }
+}
+
+async function previewArchiveYear() {
+  const newYear = document.getElementById('rollover-new-year')?.value?.trim();
+  if (!newYear || !/^\d{4}$/.test(newYear)) {
+    Utils.toast('4자리 연도를 입력해주세요 (예: 2027)', 'warning');
+    return;
+  }
+  try {
+    const result = await API.post('archiveYear', { new_year: newYear, dry_run: true });
+    _archivePreview = { new_year: newYear, result };
+    _renderArchivePreview(result);
+  } catch (e) {
+    Utils.toast('미리보기 실패: ' + e.message, 'error');
+  }
+}
+
+function _renderArchivePreview(r) {
+  const box = document.getElementById('rollover-preview');
+  if (!box) return;
+  box.style.display = 'block';
+  document.getElementById('rs-from').textContent = r.from_year || '—';
+  document.getElementById('rs-to').textContent   = r.to_year || '—';
+  document.getElementById('rs-count').textContent = r.archived_count;
+
+  const list = document.getElementById('rs-preview-list');
+  if (!Array.isArray(r.units_preview) || r.units_preview.length === 0) {
+    list.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">아카이브할 단원이 없습니다.</p>';
+  } else {
+    list.innerHTML = `
+      <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:.35rem">
+        대상 단원 미리보기 (최대 10개):
+      </p>
+      <ul class="rs-preview-ul">
+        ${r.units_preview.map(u => `
+          <li>
+            <span class="rs-grade">${u.grade}학년</span>
+            <span class="rs-title">${(u.title || '(제목 없음)')}</span>
+            <span class="badge ${Utils.statusClass(u.status)}">${Utils.statusLabel(u.status)}</span>
+          </li>`).join('')}
+      </ul>`;
+  }
+
+  // 동일 연도면 실행 비활성
+  const btn = document.getElementById('rs-execute-btn');
+  if (btn) {
+    if (r.from_year === r.to_year) {
+      btn.disabled = true;
+      btn.textContent = '동일 연도 — 실행 불가';
+    } else {
+      btn.disabled = false;
+      btn.textContent = `예, ${r.from_year} → ${r.to_year}로 전환합니다`;
+    }
+  }
+}
+
+function cancelArchiveYear() {
+  const box = document.getElementById('rollover-preview');
+  if (box) box.style.display = 'none';
+  _archivePreview = null;
+}
+
+async function executeArchiveYear() {
+  if (!_archivePreview) {
+    Utils.toast('먼저 [미리보기]를 눌러주세요', 'warning');
+    return;
+  }
+  const newYear = _archivePreview.new_year;
+  const expected = _archivePreview.result.archived_count;
+
+  // 안전장치 — 사용자가 연도를 직접 한 번 더 타이핑
+  const confirmInput = prompt(
+    `정말 ${expected}개 단원을 archived 처리하고 새 학년도(${newYear})로 전환하시겠습니까?\n\n` +
+    `확인을 위해 새 학년도를 다시 입력해주세요:`
+  );
+  if (!confirmInput || confirmInput.trim() !== newYear) {
+    Utils.toast('확인 입력이 일치하지 않아 취소되었습니다', 'info');
+    return;
+  }
+
+  const btn = document.getElementById('rs-execute-btn');
+  if (btn) Utils.setLoading(btn, true);
+
+  try {
+    const result = await API.post('archiveYear', { new_year: newYear, dry_run: false });
+    Utils.toast(
+      `✅ 학년도 전환 완료: ${result.from_year} → ${result.to_year} ` +
+      `(${result.archived_count}단원 아카이브, ${result.snapshot_count}개 스냅샷 저장)`,
+      'success'
+    );
+    cancelArchiveYear();
+    await loadAdminData();
+    await _refreshCurrentYear();
+    await renderSnapshots();
+  } catch (e) {
+    Utils.toast('전환 실패: ' + e.message, 'error');
+  } finally {
+    if (btn) Utils.setLoading(btn, false);
+  }
+}
+
+// ── 인쇄 / PDF 출력 (v3.3, Phase 4) ──────────────────────
+//
+// 현재 내보내기 범위 라디오/학년 선택을 그대로 query string으로 변환해
+// print.html을 새 창으로 연다. print.html이 자체적으로 데이터 로드 + 자동 인쇄.
+
+function openPrintView() {
+  const scopeEl = document.querySelector('input[name="export-scope"]:checked');
+  const scope   = scopeEl?.value || 'all';
+  const grade   = document.getElementById('export-grade')?.value || '';
+
+  const qs = new URLSearchParams();
+  qs.set('scope', scope);
+  if (scope === 'grade' && grade) qs.set('grade', grade);
+
+  const url = `print.html?${qs.toString()}`;
+  const w = window.open(url, '_blank', 'noopener');
+  if (!w) {
+    Utils.toast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요', 'warning');
+  } else {
+    Utils.toast('인쇄 미리보기를 새 창에서 엽니다', 'info');
+  }
 }
