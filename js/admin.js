@@ -321,44 +321,144 @@ async function doExport(format) {
   }
 }
 
-// ── 사용자 관리 ───────────────────────────────────────────
+// ── 사용자 관리 (v3.4 — 실제 Users 시트 연동) ───────────
 
 let _users = [];
 
+const ROLE_LABEL_KO = {
+  viewer: '열람',
+  commenter: '피드백',
+  editor: '교사',
+  approver: '승인자',
+  admin: '수석',
+};
+
 async function renderUsers() {
+  const container = document.getElementById('user-table-body');
+  if (!container) return;
+  container.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">로딩 중…</td></tr>';
+
   try {
-    // Units의 owner_email로 간단한 사용자 목록 추출 (Phase 4에서 Users API로 교체)
-    const emails = [...new Set(_units.map(u => u.owner_email).filter(Boolean))];
-    const container = document.getElementById('user-table-body');
-    if (!container) return;
-    if (emails.length === 0) {
+    const list = await API.get('users');
+    _users = Array.isArray(list) ? list : [];
+
+    if (_users.length === 0) {
       container.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">등록된 사용자 없음</td></tr>';
       return;
     }
-    container.innerHTML = emails.map(email => `
-      <tr>
-        <td>${email}</td>
-        <td>${email.split('@')[0]}</td>
-        <td><span class="role-badge role-editor">editor</span></td>
-        <td>—</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="Utils.toast('사용자 관리 Phase 4 예정','info')">편집</button></td>
-      </tr>`).join('');
+
+    container.innerHTML = _users.map(u => {
+      const role = u.role || 'viewer';
+      const label = ROLE_LABEL_KO[role] || role;
+      // active=false 행은 음영 처리
+      const inactive = u.active === false ? ' style="opacity:.5"' : '';
+      return `
+        <tr${inactive} data-email="${_esc(u.email)}">
+          <td>${_esc(u.email)}</td>
+          <td>${_esc(u.display_name || u.email.split('@')[0])}</td>
+          <td><span class="role-badge role-${role}">${role} <span style="opacity:.7">(${label})</span></span></td>
+          <td>${u.assigned_grade ? u.assigned_grade + '학년' : '—'}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="editUser('${_esc(u.email)}')">편집</button>
+            ${u.active === false
+              ? `<button class="btn btn-ghost btn-sm" onclick="toggleUserActive('${_esc(u.email)}', true)">활성화</button>`
+              : `<button class="btn btn-ghost btn-sm" onclick="toggleUserActive('${_esc(u.email)}', false)">비활성화</button>`}
+          </td>
+        </tr>`;
+    }).join('');
   } catch (e) {
-    Utils.toast('사용자 목록 로드 실패', 'error');
+    if (e.code === 'FORBIDDEN') {
+      container.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary)">사용자 목록 조회는 admin 권한이 필요합니다</td></tr>';
+    } else {
+      container.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger)">사용자 목록 로드 실패: ${_esc(e.message || '')}</td></tr>`;
+    }
   }
 }
 
+function _esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 async function addUser() {
-  const email = document.getElementById('new-email')?.value?.trim();
-  const role  = document.getElementById('new-role')?.value;
-  const grade = document.getElementById('new-grade')?.value;
-  if (!email || !email.includes('@')) { Utils.toast('유효한 이메일을 입력하세요', 'warning'); return; }
+  const emailEl = document.getElementById('new-email');
+  const nameEl  = document.getElementById('new-name');
+  const roleEl  = document.getElementById('new-role');
+  const gradeEl = document.getElementById('new-grade');
+
+  const email = emailEl?.value?.trim();
+  const name  = nameEl?.value?.trim();
+  const role  = roleEl?.value;
+  const grade = gradeEl?.value;
+
+  if (!email) {
+    Utils.toast('이메일을 입력해주세요', 'warning');
+    emailEl?.focus();
+    return;
+  }
+  if (!email.includes('@') || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    Utils.toast('유효한 이메일 형식이 아닙니다', 'warning');
+    emailEl?.focus();
+    return;
+  }
+
   try {
-    await API.post('updateUser', { email, role, assigned_grade: grade ? parseInt(grade) : null });
-    Utils.toast(`${email} 추가 완료`, 'success');
-    document.getElementById('new-email').value = '';
+    const body = { email, role: role || 'viewer' };
+    if (name) body.display_name = name;
+    if (grade) body.assigned_grade = parseInt(grade);
+
+    const result = await API.post('updateUser', body);
+    const verb = result?.created ? '추가' : '갱신';
+    Utils.toast(`${email} ${verb} 완료`, 'success');
+
+    // 입력 필드 초기화
+    if (emailEl) emailEl.value = '';
+    if (nameEl)  nameEl.value  = '';
+    if (gradeEl) gradeEl.value = '';
+
+    // 목록 즉시 갱신
+    await renderUsers();
   } catch (e) {
-    Utils.toast('추가 실패: ' + e.message, 'error');
+    if (e.code === 'FORBIDDEN') Utils.toast('사용자 관리는 admin만 가능합니다', 'error');
+    else Utils.toast('추가 실패: ' + (e.message || ''), 'error');
+  }
+}
+
+async function editUser(email) {
+  const u = _users.find(x => x.email === email);
+  if (!u) return;
+
+  const newRole = prompt(
+    `[${email}]의 역할을 변경합니다.\n` +
+    `\n옵션: viewer / commenter / editor / approver / admin\n\n현재: ${u.role}`,
+    u.role || 'viewer'
+  );
+  if (newRole === null) return;
+  const cleaned = newRole.trim().toLowerCase();
+  if (!['viewer', 'commenter', 'editor', 'approver', 'admin'].includes(cleaned)) {
+    Utils.toast('허용된 역할이 아닙니다', 'warning');
+    return;
+  }
+
+  try {
+    await API.post('updateUser', { email, role: cleaned });
+    Utils.toast(`${email} → ${cleaned} 변경됨`, 'success');
+    await renderUsers();
+  } catch (e) {
+    Utils.toast('변경 실패: ' + e.message, 'error');
+  }
+}
+
+async function toggleUserActive(email, active) {
+  const verb = active ? '활성화' : '비활성화';
+  if (!confirm(`${email} 계정을 ${verb}하시겠습니까?`)) return;
+  try {
+    await API.post('updateUser', { email, active });
+    Utils.toast(`${email} ${verb} 완료`, 'success');
+    await renderUsers();
+  } catch (e) {
+    Utils.toast(`${verb} 실패: ` + e.message, 'error');
   }
 }
 

@@ -12,6 +12,7 @@ const ACTIONS_GET = {
   snapshots:  (p, email) => getSnapshots(p, email),
   comments:   (p, email) => getComments({ unit_id: p.unitId || p.unit_id }, email),
   trash:      (p, email) => getTrash(p, email),  // v3.3 — 휴지통 목록
+  users:      (p, email) => getUsers(p, email),  // v3.4 — 사용자 목록 (admin)
   export:     (p, email) => handleExport(p, email),
 };
 

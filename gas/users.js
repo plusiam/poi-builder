@@ -5,6 +5,24 @@
 // 모든 set/append 연산은 헤더 기반(headerMap_)으로 수행하여
 // 시트 컬럼 순서 변경에도 견고하다.
 
+// ── 사용자 목록 조회 (v3.4) ───────────────────────────────
+// admin 전용. Users 시트 전체 행을 객체 배열로 반환.
+function getUsers(params, email) {
+  requireRole_(email, 'admin');
+  const sheet = getSheet_('Users');
+  const map = headerMap_(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i][map.email]) continue;
+    const obj = rowToObj_(rows[i], map);
+    // role alias 정규화 (시트에 reviewer가 남아 있어도 approver로 보이게)
+    if (obj.role === 'reviewer') obj.role = 'approver';
+    out.push(obj);
+  }
+  return out;
+}
+
 function updateUser(params, email) {
   requireRole_(email, 'admin');
 
