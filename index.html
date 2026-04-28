@@ -46,6 +46,24 @@
 
 <div class="container">
   <!-- 홈 섹션 -->
+  <!-- 접근 게이트 — 승인 대기 / 비활성 (v3.4) -->
+  <div id="section-access-gate" class="page-section access-gate">
+    <div class="gate-card">
+      <div class="gate-icon" id="gate-icon">⏳</div>
+      <h2 class="gate-title" id="gate-title">승인 대기 중입니다</h2>
+      <p class="gate-msg" id="gate-msg">관리자가 권한을 승인하면 바로 사용하실 수 있습니다.</p>
+      <div class="gate-info">
+        <div><span class="gl">로그인 이메일</span> <strong id="gate-email">—</strong></div>
+        <div><span class="gl">현재 권한</span> <strong id="gate-role">—</strong></div>
+      </div>
+      <div class="gate-actions">
+        <button class="btn btn-primary" onclick="gateReload()">🔄 다시 확인</button>
+        <button class="btn btn-ghost" onclick="Auth.logout()">🚪 다른 계정으로 로그인</button>
+      </div>
+      <p class="gate-help">관리자(수석교사)에게 가입 사실을 알려주세요. 승인 후 [다시 확인]을 누르면 즉시 진입됩니다.</p>
+    </div>
+  </div>
+
   <div id="section-home" class="page-section">
     <div class="hero">
       <h2>안녕하세요 👋</h2>

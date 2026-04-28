@@ -347,23 +347,59 @@ async function renderUsers() {
       return;
     }
 
-    container.innerHTML = _users.map(u => {
+    // 승인 대기 사용자가 있으면 상단에 카운터 배지로 노출
+    const pendingCount = _users.filter(u => u.status === 'pending').length;
+    let bannerHtml = '';
+    if (pendingCount > 0) {
+      bannerHtml = `
+        <tr class="pending-banner-row">
+          <td colspan="5">
+            <div class="pending-banner">
+              ⏳ <strong>승인 대기 중인 사용자 ${pendingCount}명</strong>
+              — 아래 [승인] 또는 [거부] 버튼으로 처리해주세요.
+            </div>
+          </td>
+        </tr>`;
+    }
+
+    container.innerHTML = bannerHtml + _users.map(u => {
       const role = u.role || 'viewer';
       const label = ROLE_LABEL_KO[role] || role;
-      // active=false 행은 음영 처리
-      const inactive = u.active === false ? ' style="opacity:.5"' : '';
+      const status = u.status || (u.active === false ? 'inactive' : 'active');
+
+      // 행 클래스 — pending 강조
+      let rowClass = '';
+      if (status === 'pending')      rowClass = ' class="user-row-pending"';
+      else if (status === 'inactive') rowClass = ' class="user-row-inactive"';
+
+      // 역할 배지 — pending 은 노란색
+      const roleBadge = status === 'pending'
+        ? `<span class="role-badge role-pending">⏳ pending <span style="opacity:.7">(승인 대기)</span></span>`
+        : `<span class="role-badge role-${role}">${role} <span style="opacity:.7">(${label})</span></span>`;
+
+      // 액션 버튼 — 상태별 분기
+      let actions = '';
+      if (status === 'pending') {
+        actions = `
+          <button class="btn btn-primary btn-sm" onclick="approvePendingUser('${_esc(u.email)}')">✅ 승인</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectPendingUser('${_esc(u.email)}')">❌ 거부</button>`;
+      } else if (status === 'inactive') {
+        actions = `
+          <button class="btn btn-ghost btn-sm" onclick="editUser('${_esc(u.email)}')">편집</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleUserActive('${_esc(u.email)}', true)">활성화</button>`;
+      } else {
+        actions = `
+          <button class="btn btn-ghost btn-sm" onclick="editUser('${_esc(u.email)}')">편집</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleUserActive('${_esc(u.email)}', false)">비활성화</button>`;
+      }
+
       return `
-        <tr${inactive} data-email="${_esc(u.email)}">
+        <tr${rowClass} data-email="${_esc(u.email)}">
           <td>${_esc(u.email)}</td>
           <td>${_esc(u.display_name || u.email.split('@')[0])}</td>
-          <td><span class="role-badge role-${role}">${role} <span style="opacity:.7">(${label})</span></span></td>
+          <td>${roleBadge}</td>
           <td>${u.assigned_grade ? u.assigned_grade + '학년' : '—'}</td>
-          <td style="white-space:nowrap">
-            <button class="btn btn-ghost btn-sm" onclick="editUser('${_esc(u.email)}')">편집</button>
-            ${u.active === false
-              ? `<button class="btn btn-ghost btn-sm" onclick="toggleUserActive('${_esc(u.email)}', true)">활성화</button>`
-              : `<button class="btn btn-ghost btn-sm" onclick="toggleUserActive('${_esc(u.email)}', false)">비활성화</button>`}
-          </td>
+          <td style="white-space:nowrap">${actions}</td>
         </tr>`;
     }).join('');
   } catch (e) {
@@ -459,6 +495,57 @@ async function toggleUserActive(email, active) {
     await renderUsers();
   } catch (e) {
     Utils.toast(`${verb} 실패: ` + e.message, 'error');
+  }
+}
+
+// ── 승인 대기 사용자 처리 (v3.4) ─────────────────────────
+
+async function approvePendingUser(email) {
+  const u = _users.find(x => x.email === email);
+  const display = u ? (u.display_name || email) : email;
+
+  // 어떤 역할로 승인할지 빠른 선택
+  const role = prompt(
+    `[${display}]을(를) 승인합니다.\n\n` +
+    `부여할 역할을 선택하세요:\n` +
+    `  editor    — 본인 학년 단원 편집 (기본)\n` +
+    `  commenter — 댓글만 (편집 불가)\n` +
+    `  approver  — 검토자/승인자\n` +
+    `  viewer    — 열람만\n` +
+    `  admin     — 모든 권한\n`,
+    'editor'
+  );
+  if (role === null) return;
+  const cleaned = role.trim().toLowerCase();
+  if (!['viewer', 'commenter', 'editor', 'approver', 'admin'].includes(cleaned)) {
+    Utils.toast('허용된 역할이 아닙니다', 'warning');
+    return;
+  }
+
+  try {
+    // role 변경 + active=true 동시 적용
+    await API.post('updateUser', { email, role: cleaned, active: true });
+    Utils.toast(`✅ ${display} 승인 완료 (${cleaned})`, 'success');
+    await renderUsers();
+  } catch (e) {
+    Utils.toast('승인 실패: ' + e.message, 'error');
+  }
+}
+
+async function rejectPendingUser(email) {
+  if (!confirm(
+    `❌ 승인을 거부합니다.\n\n${email}\n\n` +
+    `이 사용자는 비활성 상태로 유지됩니다 (계정은 시트에 남아 있음).\n` +
+    `완전히 제거하려면 Spreadsheet에서 직접 행을 삭제해주세요.\n\n계속할까요?`
+  )) return;
+
+  try {
+    // role=viewer + active=false (단순 차단)
+    await API.post('updateUser', { email, role: 'viewer', active: false });
+    Utils.toast(`${email} 승인 거부 처리됨`, 'info');
+    await renderUsers();
+  } catch (e) {
+    Utils.toast('거부 처리 실패: ' + e.message, 'error');
   }
 }
 

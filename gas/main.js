@@ -13,6 +13,7 @@ const ACTIONS_GET = {
   comments:   (p, email) => getComments({ unit_id: p.unitId || p.unit_id }, email),
   trash:      (p, email) => getTrash(p, email),  // v3.3 — 휴지통 목록
   users:      (p, email) => getUsers(p, email),  // v3.4 — 사용자 목록 (admin)
+  whoami:     (p, email) => whoami(p, email),    // v3.4 — 본인 프로필 (역할 검사 없음, 자동 사전 등록)
   export:     (p, email) => handleExport(p, email),
 };
 

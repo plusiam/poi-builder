@@ -413,3 +413,37 @@
   color: #137333;
   border: 1px solid #b8e0c2;
 }
+
+/* 승인 대기 (v3.4) */
+.role-pending {
+  background: #fef7e0;
+  color: #b06000;
+  border: 1px solid #fbbc04;
+}
+.user-row-pending {
+  background: #fffbe6 !important;
+}
+.user-row-pending:hover td {
+  background: #fff8d6 !important;
+}
+.user-row-pending td {
+  border-top: 1px solid #fbbc04;
+  border-bottom: 1px solid #fbbc04;
+}
+.user-row-inactive {
+  opacity: .55;
+}
+.pending-banner-row td {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+.pending-banner {
+  background: #fef7e0;
+  border: 1px solid #fbbc04;
+  border-radius: 6px;
+  padding: .65rem .9rem;
+  margin: 0 0 .5rem;
+  font-size: .9rem;
+  color: #8a6d3b;
+}

@@ -18,10 +18,20 @@ async function onLogin(user) {
   document.getElementById('header-user').style.display = 'flex';
 
   try {
+    // 1) 본인 프로필 조회 + 자동 사전 등록 (v3.4 승인 대기 체계)
+    const profile = await API.get('whoami', { display_name: user.name || '' });
+
+    if (profile.status !== 'active') {
+      showAccessGateScreen(profile);
+      return;
+    }
+
+    // 2) 정상 사용자 — 실제 역할 반영 후 데이터 로드
+    _userRole = profile.role;
     await loadData();
     renderHome();
   } catch (e) {
-    if (e.code === 'UNAUTHORIZED' || e.code === 'FORBIDDEN') {
+    if (e.code === 'UNAUTHORIZED') {
       window.location.href = 'login.html';
     } else {
       Utils.toast('데이터를 불러오지 못했습니다: ' + e.message, 'error');
@@ -36,11 +46,30 @@ async function loadData() {
   ]);
   _units = units || [];
   _constants = constants;
+}
 
-  // 내 역할 파악 (units 응답에서 파악하거나 별도 API 필요 시 확장)
-  // 임시: 수석교사 이메일은 admin
-  if (_user.email === 'yeohanki@gmail.com') _userRole = 'admin';
-  else _userRole = 'editor';
+// ── 승인 대기 / 비활성 화면 (v3.4) ─────────────────────────
+function showAccessGateScreen(profile) {
+  // 모든 페이지 섹션을 숨기고 access-gate 섹션만 노출
+  document.querySelectorAll('.page-section').forEach(el => el.style.display = 'none');
+  const gate = document.getElementById('section-access-gate');
+  if (!gate) return;
+  gate.style.display = 'block';
+
+  const isPending = profile.status === 'pending';
+  document.getElementById('gate-icon').textContent  = isPending ? '⏳' : '🚫';
+  document.getElementById('gate-title').textContent = isPending ? '승인 대기 중입니다' : '비활성화된 계정입니다';
+  document.getElementById('gate-msg').textContent   = isPending
+    ? '관리자가 권한을 승인하면 바로 사용하실 수 있습니다. 잠시 후 다시 시도해주세요.'
+    : '계정이 비활성 상태입니다. 관리자에게 문의해주세요.';
+
+  document.getElementById('gate-email').textContent = profile.email;
+  document.getElementById('gate-role').textContent  = profile.role;
+}
+
+function gateReload() {
+  // 새로고침으로 다시 whoami 호출 → 승인됐는지 확인
+  window.location.reload();
 }
 
 function renderHome() {

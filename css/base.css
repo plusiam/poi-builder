@@ -186,3 +186,71 @@ input.error, textarea.error { border-color: var(--danger); }
   .app-header nav { display: none; }
   .container { padding: 0 1rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   접근 게이트 — 승인 대기 / 비활성 (v3.4)
+   ═══════════════════════════════════════════════════════════ */
+.access-gate {
+  display: none;
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+.access-gate .gate-card {
+  max-width: 520px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .06);
+}
+.gate-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+.gate-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 .5rem;
+  color: var(--text);
+}
+.gate-msg {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+  font-size: .95rem;
+}
+.gate-info {
+  background: #f8f9fa;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-size: .88rem;
+  text-align: left;
+  display: inline-block;
+}
+.gate-info > div { margin: .25rem 0; }
+.gate-info .gl {
+  display: inline-block;
+  min-width: 7em;
+  color: var(--text-secondary);
+}
+.gate-actions {
+  display: flex;
+  gap: .5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.gate-help {
+  color: var(--text-secondary);
+  font-size: .82rem;
+  margin: 1rem 0 0;
+  line-height: 1.5;
+}

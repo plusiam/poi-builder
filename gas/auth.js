@@ -1,13 +1,17 @@
 // 인증 · 권한 체크
 
-// 역할 위계 (v3.1)
+// 역할 위계 (v3.1 ~ v3.4)
+//  pending   : (시트에만 존재) 자동 사전 등록 — 권한 체크 모두 거부 (ROLES 미포함)
+//              → admin이 사용자 관리 화면에서 [승인] 시 editor 등으로 전환
 //  viewer    : 조회만
 //  commenter : 조회 + 댓글·이모지·해결 처리 (편집 불가)
 //  editor    : 본인 학년 UOI 편집 + 모든 댓글
 //  approver  : 승인·반려 (구 reviewer)
-//  admin    : 모든 권한
+//  admin     : 모든 권한
 //
 // 호환성: 기존 'reviewer' 값은 'approver'로 자동 매핑된다.
+// 'pending'은 ROLES enum에 일부러 미포함 → ROLES['pending'] === undefined →
+// requireRole_(email, anything) 호출 시 항상 FORBIDDEN 처리됨.
 const ROLES = { viewer: 0, commenter: 1, editor: 2, approver: 3, admin: 4 };
 const ROLE_ALIASES = { reviewer: 'approver' };
 

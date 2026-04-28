@@ -5,8 +5,92 @@
 // 모든 set/append 연산은 헤더 기반(headerMap_)으로 수행하여
 // 시트 컬럼 순서 변경에도 견고하다.
 
+// ── 본인 프로필 조회 + 자동 사전 등록 (v3.4 — 승인 대기 체계) ──
+//
+// Google ID 토큰 검증을 통과한 모든 사용자가 호출 가능 (역할 검사 없음).
+// 호출 시 Users 시트에 이메일이 없으면 role='pending', active=false로 자동 등록.
+//
+// 반환 필드:
+//   email, status: 'active' | 'pending' | 'inactive',
+//   role, display_name, assigned_grade, subject_tags, isNew
+//
+// 프론트는 status 에 따라 분기:
+//   active   → 정상 진입
+//   pending  → 승인 대기 화면
+//   inactive → 비활성 상태 안내
+function whoami(params, email) {
+  if (!email) throw appError_('UNAUTHORIZED', '인증이 필요합니다');
+
+  const sheet = getSheet_('Users');
+  const map = headerMap_(sheet);
+  const rows = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][map.email] === email) {
+      const obj = rowToObj_(rows[i], map);
+      if (obj.role === 'reviewer') obj.role = 'approver';
+      return _toProfile_(obj, false);
+    }
+  }
+
+  // 자동 사전 등록 (승인 대기 큐로 진입)
+  const ts = now_();
+  const headerCount = Object.keys(map).length;
+  const row = new Array(headerCount).fill('');
+  if (map.email !== undefined)          row[map.email]          = email;
+  if (map.display_name !== undefined)   row[map.display_name]   = (params && params.display_name) || email.split('@')[0];
+  if (map.role !== undefined)           row[map.role]           = 'pending';
+  if (map.assigned_grade !== undefined) row[map.assigned_grade] = '';
+  if (map.subject_tags !== undefined)   row[map.subject_tags]   = '[]';
+  if (map.active !== undefined)         row[map.active]         = false;
+  if (map.added_at !== undefined)       row[map.added_at]       = ts;
+  sheet.appendRow(row);
+
+  Logger.log(`whoami: auto-registered pending user ${email}`);
+
+  return _toProfile_({
+    email,
+    display_name: (params && params.display_name) || email.split('@')[0],
+    role: 'pending',
+    assigned_grade: '',
+    subject_tags: '[]',
+    active: false,
+    added_at: ts,
+  }, true);
+}
+
+function _toProfile_(obj, isNew) {
+  const role = obj.role || 'viewer';
+  const active = obj.active === true || String(obj.active).toLowerCase() === 'true';
+  let status;
+  if (role === 'pending')      status = 'pending';
+  else if (!active)            status = 'inactive';
+  else                         status = 'active';
+
+  return {
+    email: obj.email,
+    display_name: obj.display_name || (obj.email || '').split('@')[0],
+    role,
+    status,
+    assigned_grade: obj.assigned_grade || null,
+    subject_tags: _safeParseArray_(obj.subject_tags),
+    is_new: !!isNew,
+  };
+}
+
+function _safeParseArray_(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') {
+    try { const parsed = JSON.parse(v); return Array.isArray(parsed) ? parsed : []; }
+    catch (_) { return v.split(',').map(s => s.trim()).filter(Boolean); }
+  }
+  return [];
+}
+
 // ── 사용자 목록 조회 (v3.4) ───────────────────────────────
 // admin 전용. Users 시트 전체 행을 객체 배열로 반환.
+// pending 상태 사용자 식별을 위해 status 필드도 함께 계산해서 응답에 포함한다.
 function getUsers(params, email) {
   requireRole_(email, 'admin');
   const sheet = getSheet_('Users');
@@ -16,11 +100,18 @@ function getUsers(params, email) {
   for (let i = 1; i < rows.length; i++) {
     if (!rows[i][map.email]) continue;
     const obj = rowToObj_(rows[i], map);
-    // role alias 정규화 (시트에 reviewer가 남아 있어도 approver로 보이게)
     if (obj.role === 'reviewer') obj.role = 'approver';
+    // 프로필 도출에 사용된 status 도 같이 노출 (pending/inactive/active)
+    const profile = _toProfile_(obj, false);
+    obj.status = profile.status;
     out.push(obj);
   }
-  return out;
+  // pending 먼저, 그다음 inactive, 그다음 active 순으로 정렬 (admin이 즉시 처리하기 쉽게)
+  const order = { pending: 0, inactive: 1, active: 2 };
+  return out.sort((a, b) =>
+    (order[a.status] ?? 9) - (order[b.status] ?? 9) ||
+    String(a.added_at || '').localeCompare(String(b.added_at || ''))
+  );
 }
 
 function updateUser(params, email) {
