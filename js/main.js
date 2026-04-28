@@ -49,7 +49,12 @@ async function loadData() {
 }
 
 // ── 승인 대기 / 비활성 화면 (v3.4) ─────────────────────────
+
+let _gateProfile = null;
+
 function showAccessGateScreen(profile) {
+  _gateProfile = profile;
+
   // 모든 페이지 섹션을 숨기고 access-gate 섹션만 노출
   document.querySelectorAll('.page-section').forEach(el => el.style.display = 'none');
   const gate = document.getElementById('section-access-gate');
@@ -60,11 +65,70 @@ function showAccessGateScreen(profile) {
   document.getElementById('gate-icon').textContent  = isPending ? '⏳' : '🚫';
   document.getElementById('gate-title').textContent = isPending ? '승인 대기 중입니다' : '비활성화된 계정입니다';
   document.getElementById('gate-msg').textContent   = isPending
-    ? '관리자가 권한을 승인하면 바로 사용하실 수 있습니다. 잠시 후 다시 시도해주세요.'
+    ? '관리자가 본인 확인 후 권한을 승인합니다. 아래 정보를 입력해주세요.'
     : '계정이 비활성 상태입니다. 관리자에게 문의해주세요.';
 
   document.getElementById('gate-email').textContent = profile.email;
   document.getElementById('gate-role').textContent  = profile.role;
+
+  // 자기소개 블록 — pending 사용자만 노출
+  const introBlock = document.getElementById('gate-intro-block');
+  if (introBlock) {
+    introBlock.style.display = isPending ? 'block' : 'none';
+
+    if (isPending) {
+      // 기존 정보 프리필 (자동 추출된 display_name + 이미 입력한 값)
+      const nameEl  = document.getElementById('gate-name');
+      const gradeEl = document.getElementById('gate-grade');
+      const subjEl  = document.getElementById('gate-subjects');
+
+      if (nameEl && !nameEl.value) {
+        // _user.name(Google 표시 이름) 우선, 그다음 profile.display_name, 마지막 fallback
+        const fallbackName = (_user && _user.name) || profile.display_name || '';
+        nameEl.value = fallbackName;
+      }
+      if (gradeEl && profile.assigned_grade) gradeEl.value = String(profile.assigned_grade);
+      if (subjEl && Array.isArray(profile.subject_tags) && profile.subject_tags.length > 0) {
+        subjEl.value = profile.subject_tags.join(', ');
+      }
+    }
+  }
+}
+
+async function submitGateIntro() {
+  const nameEl  = document.getElementById('gate-name');
+  const gradeEl = document.getElementById('gate-grade');
+  const subjEl  = document.getElementById('gate-subjects');
+
+  const name  = nameEl?.value?.trim();
+  const grade = gradeEl?.value;
+  const subj  = subjEl?.value?.trim();
+
+  if (!name) {
+    Utils.toast('이름을 입력해주세요', 'warning');
+    nameEl?.focus();
+    return;
+  }
+
+  const btn = document.getElementById('gate-submit-btn');
+  if (btn) Utils.setLoading(btn, true);
+
+  try {
+    const body = { display_name: name };
+    if (grade) body.assigned_grade = parseInt(grade);
+    if (subj)  body.subject_tags   = subj;
+
+    await API.post('submitMyIntro', body);
+
+    const saved = document.getElementById('gate-saved-msg');
+    if (saved) saved.style.display = 'block';
+
+    Utils.toast('정보가 저장됐습니다. 관리자 승인을 기다려주세요.', 'success');
+  } catch (e) {
+    Utils.toast('저장 실패: ' + (e.message || ''), 'error');
+  } finally {
+    if (btn) Utils.setLoading(btn, false);
+  }
 }
 
 function gateReload() {

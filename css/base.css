@@ -254,3 +254,70 @@ input.error, textarea.error { border-color: var(--danger); }
   margin: 1rem 0 0;
   line-height: 1.5;
 }
+
+/* 자기소개 블록 (승인 대기 화면 안) */
+.gate-intro {
+  text-align: left;
+  background: #fffbe6;
+  border: 1px solid #fbbc04;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.gate-intro-title {
+  font-weight: 700;
+  font-size: .95rem;
+  margin-bottom: .35rem;
+  color: #8a6d3b;
+}
+.gate-intro-help {
+  font-size: .82rem;
+  color: #8a6d3b;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+.gate-intro-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .65rem;
+  margin-bottom: .85rem;
+}
+.gate-intro-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.gate-intro-form .form-group label {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.gate-intro-form .form-group label .muted {
+  color: var(--text-secondary);
+  font-weight: 400;
+  font-size: .75rem;
+}
+.gate-intro-form input,
+.gate-intro-form select {
+  padding: .45rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+}
+.gate-intro-form .form-group:nth-child(3) {
+  grid-column: 1 / -1;
+}
+.gate-intro-saved {
+  margin-top: .65rem;
+  padding: .55rem .75rem;
+  background: #e6f4ea;
+  color: #137333;
+  border: 1px solid #b8e0c2;
+  border-radius: 6px;
+  font-size: .82rem;
+}
+
+@media (max-width: 540px) {
+  .gate-intro-form { grid-template-columns: 1fr; }
+}

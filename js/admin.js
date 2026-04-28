@@ -393,6 +393,41 @@ async function renderUsers() {
           <button class="btn btn-ghost btn-sm" onclick="toggleUserActive('${_esc(u.email)}', false)">비활성화</button>`;
       }
 
+      // pending 행에는 자기소개로 받은 정보(이름/학년/교과)를 한 줄 더 표시
+      let introRow = '';
+      if (status === 'pending') {
+        const name = (u.display_name || '').trim();
+        const grade = u.assigned_grade ? `${u.assigned_grade}학년` : '';
+        const tags = _safeTags(u.subject_tags);
+        const tagsStr = tags.length > 0 ? tags.join(', ') : '';
+        const added  = u.added_at ? Utils.formatDate(u.added_at) : '';
+
+        const hasIntro = name || grade || tagsStr;
+        if (hasIntro) {
+          introRow = `
+            <tr class="user-intro-row">
+              <td colspan="5">
+                <div class="user-intro-bar">
+                  <span class="ui-tag ui-tag-name">📝 ${_esc(name) || '이름 없음'}</span>
+                  ${grade ? `<span class="ui-tag">🏫 ${grade}</span>` : ''}
+                  ${tagsStr ? `<span class="ui-tag">📚 ${_esc(tagsStr)}</span>` : ''}
+                  ${added ? `<span class="ui-tag ui-tag-time">⏱️ 가입 ${added}</span>` : ''}
+                </div>
+              </td>
+            </tr>`;
+        } else {
+          introRow = `
+            <tr class="user-intro-row user-intro-empty">
+              <td colspan="5">
+                <div class="user-intro-bar user-intro-empty-bar">
+                  ⚠️ 자기소개 정보 없음 — 이메일만으로 본인 확인 후 승인하세요
+                  ${added ? `<span class="ui-tag ui-tag-time">⏱️ 가입 ${added}</span>` : ''}
+                </div>
+              </td>
+            </tr>`;
+        }
+      }
+
       return `
         <tr${rowClass} data-email="${_esc(u.email)}">
           <td>${_esc(u.email)}</td>
@@ -400,7 +435,7 @@ async function renderUsers() {
           <td>${roleBadge}</td>
           <td>${u.assigned_grade ? u.assigned_grade + '학년' : '—'}</td>
           <td style="white-space:nowrap">${actions}</td>
-        </tr>`;
+        </tr>${introRow}`;
     }).join('');
   } catch (e) {
     if (e.code === 'FORBIDDEN') {
@@ -415,6 +450,20 @@ function _esc(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function _safeTags(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') {
+    try {
+      const parsed = JSON.parse(v);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return v.split(',').map(s => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
 }
 
 async function addUser() {
@@ -439,14 +488,25 @@ async function addUser() {
     return;
   }
 
+  // v3.4 — 본인 확인이 어려우니 admin이 손으로 추가해도 기본은 pending(비활성)
+  // admin이 정말 즉시 활성화하려면 추가 후 [편집]/[활성화]로 처리
+  const startAsPending = confirm(
+    `'${email}'을(를) 어떻게 추가할까요?\n\n` +
+    `[확인]  승인 대기(pending)로 추가 — 권장 (본인 확인 후 [✅ 승인])\n` +
+    `[취소]  즉시 활성 사용자로 추가 (선택한 역할: ${role || 'viewer'})`
+  );
+
   try {
-    const body = { email, role: role || 'viewer' };
+    const body = startAsPending
+      ? { email, role: 'pending', active: false }
+      : { email, role: role || 'viewer', active: true };
     if (name) body.display_name = name;
     if (grade) body.assigned_grade = parseInt(grade);
 
     const result = await API.post('updateUser', body);
     const verb = result?.created ? '추가' : '갱신';
-    Utils.toast(`${email} ${verb} 완료`, 'success');
+    const tail = startAsPending ? ' (승인 대기)' : '';
+    Utils.toast(`${email} ${verb} 완료${tail}`, 'success');
 
     // 입력 필드 초기화
     if (emailEl) emailEl.value = '';

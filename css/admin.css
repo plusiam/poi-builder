@@ -447,3 +447,42 @@
   font-size: .9rem;
   color: #8a6d3b;
 }
+
+/* 승인 대기 사용자 자기소개 표시 (v3.4) */
+.user-intro-row td {
+  padding: 0 !important;
+  border-top: none !important;
+}
+.user-intro-row td .user-intro-bar {
+  background: #fffbe6;
+  border-top: 1px dashed #fbbc04;
+  padding: .55rem .85rem .65rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  align-items: center;
+  font-size: .82rem;
+}
+.user-intro-row td .user-intro-empty-bar {
+  background: #fce8e6;
+  border-top: 1px dashed #ea4335;
+  color: #b00020;
+}
+.ui-tag {
+  background: #fff;
+  border: 1px solid #e8d99a;
+  border-radius: 999px;
+  padding: .15rem .55rem;
+  font-size: .78rem;
+  color: #7a5d00;
+}
+.ui-tag-name {
+  background: #fff8d6;
+  font-weight: 700;
+}
+.ui-tag-time {
+  background: transparent;
+  border: 1px dashed #cbd5e1;
+  color: var(--text-secondary);
+  margin-left: auto;
+}

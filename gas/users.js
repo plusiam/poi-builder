@@ -78,6 +78,58 @@ function _toProfile_(obj, isNew) {
   };
 }
 
+// ── 본인 자기소개 제출 (v3.4 — pending 사용자도 호출 가능) ──
+//
+// 인증된 사용자라면 누구나 호출 가능 (역할 검사 없음).
+// 단 자신의 행만 갱신하며, 안전 필드(display_name / assigned_grade / subject_tags)만
+// 변경한다. role / active / email 등 권한 관련 필드는 절대 수정 불가.
+//
+// 신규 사용자가 승인 대기 화면에서 자기소개를 작성하면 admin이
+// 본인 확인 근거로 활용할 수 있다.
+function submitMyIntro(params, email) {
+  if (!email) throw appError_('UNAUTHORIZED', '인증이 필요합니다');
+
+  const sheet = getSheet_('Users');
+  const map = headerMap_(sheet);
+  const data = sheet.getDataRange().getValues();
+
+  let rowIdx = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][map.email] === email) { rowIdx = i + 1; break; }
+  }
+  if (rowIdx < 0) {
+    // whoami로 사전 등록되어 있어야 함. 안전망으로 다시 호출.
+    whoami({ display_name: params.display_name }, email);
+    // 새로 추가된 마지막 행
+    rowIdx = sheet.getLastRow();
+  }
+
+  // 안전 필드만 (display_name / assigned_grade / subject_tags)
+  if (params.display_name !== undefined && map.display_name !== undefined) {
+    const name = String(params.display_name || '').trim().slice(0, 50);
+    sheet.getRange(rowIdx, map.display_name + 1).setValue(name);
+  }
+  if (params.assigned_grade !== undefined && map.assigned_grade !== undefined) {
+    const g = parseInt(params.assigned_grade);
+    sheet.getRange(rowIdx, map.assigned_grade + 1).setValue(
+      Number.isFinite(g) && g >= 1 && g <= 6 ? g : ''
+    );
+  }
+  if (params.subject_tags !== undefined && map.subject_tags !== undefined) {
+    let tags = params.subject_tags;
+    if (typeof tags === 'string') {
+      tags = tags.split(',').map(s => s.trim()).filter(Boolean).slice(0, 10);
+    } else if (!Array.isArray(tags)) {
+      tags = [];
+    }
+    sheet.getRange(rowIdx, map.subject_tags + 1).setValue(JSON.stringify(tags));
+  }
+
+  // role / active 등은 절대 손대지 않음 (pending 유지)
+
+  return { ok: true };
+}
+
 function _safeParseArray_(v) {
   if (!v) return [];
   if (Array.isArray(v)) return v;

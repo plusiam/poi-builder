@@ -56,11 +56,45 @@
         <div><span class="gl">로그인 이메일</span> <strong id="gate-email">—</strong></div>
         <div><span class="gl">현재 권한</span> <strong id="gate-role">—</strong></div>
       </div>
+
+      <!-- 자기소개 폼 (pending 일 때만 노출) -->
+      <div class="gate-intro" id="gate-intro-block">
+        <div class="gate-intro-title">📝 본인 확인을 위한 정보 입력</div>
+        <div class="gate-intro-help">
+          관리자가 본인 확인 후 승인합니다. 아래 정보를 입력해주세요.
+        </div>
+        <div class="gate-intro-form">
+          <div class="form-group">
+            <label for="gate-name">이름 (실명)</label>
+            <input type="text" id="gate-name" maxlength="30" placeholder="예: 김선생">
+          </div>
+          <div class="form-group">
+            <label for="gate-grade">담당 학년</label>
+            <select id="gate-grade">
+              <option value="">선택 안 함</option>
+              <option value="1">1학년</option><option value="2">2학년</option>
+              <option value="3">3학년</option><option value="4">4학년</option>
+              <option value="5">5학년</option><option value="6">6학년</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="gate-subjects">담당 교과 <span class="muted">(쉼표로 구분)</span></label>
+            <input type="text" id="gate-subjects" maxlength="100" placeholder="예: 도덕, 사회">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="gate-submit-btn" onclick="submitGateIntro()">
+          ✉️ 관리자에게 정보 보내기
+        </button>
+        <div class="gate-intro-saved" id="gate-saved-msg" style="display:none">
+          ✅ 정보가 저장됐습니다. 관리자가 확인 후 승인합니다.
+        </div>
+      </div>
+
       <div class="gate-actions">
-        <button class="btn btn-primary" onclick="gateReload()">🔄 다시 확인</button>
+        <button class="btn btn-outline" onclick="gateReload()">🔄 다시 확인</button>
         <button class="btn btn-ghost" onclick="Auth.logout()">🚪 다른 계정으로 로그인</button>
       </div>
-      <p class="gate-help">관리자(수석교사)에게 가입 사실을 알려주세요. 승인 후 [다시 확인]을 누르면 즉시 진입됩니다.</p>
+      <p class="gate-help">정보 입력 후 관리자(수석교사)에게 가입 사실을 알려주세요. 승인 후 [다시 확인]을 누르면 즉시 진입됩니다.</p>
     </div>
   </div>
 

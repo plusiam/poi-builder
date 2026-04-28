@@ -40,6 +40,8 @@ const ACTIONS_POST = {
   resolveComment: (p, email) => resolveComment(p, email),
   // 사용자 관리
   updateUser:     (p, email) => updateUser(p, email),
+  // v3.4 — 본인 자기소개(승인 대기 사용자도 호출 가능)
+  submitMyIntro:  (p, email) => submitMyIntro(p, email),
 };
 
 function doGet(e) {
