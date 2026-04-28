@@ -67,6 +67,7 @@ function showAdminSection(name) {
 
 function renderDashboard() {
   Dashboard.renderKPI(_units);
+  Dashboard.renderThemeBalance(_units);  // v3.4 — 6 TDT × 학년 균형
   Dashboard.renderHeatmap(_units);
   Dashboard.renderActivityFeed(_changelog);
   MatrixView.render('admin-matrix', _units, 'admin', (cell) => {

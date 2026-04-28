@@ -13,6 +13,16 @@ const Dashboard = (() => {
   ];
   const GRADES = [1, 2, 3, 4, 5, 6];
 
+  // 6 TDT — IB PYP 인증 기준
+  const THEMES = [
+    { id: 'who_we_are',                        name: '우리는 누구인가',           short: 'Who We Are' },
+    { id: 'where_we_are_in_place_and_time',    name: '우리는 어떤 시공간에 있는가', short: 'Where We Are' },
+    { id: 'how_we_express_ourselves',           name: '우리는 어떻게 표현하는가',     short: 'How We Express' },
+    { id: 'how_the_world_works',                name: '세상은 어떻게 작동하는가',     short: 'How the World' },
+    { id: 'how_we_organize_ourselves',          name: '우리는 어떻게 조직되는가',     short: 'How We Organize' },
+    { id: 'sharing_the_planet',                 name: '지구를 공유하기',              short: 'Sharing Planet' },
+  ];
+
   // ── KPI 카드 ────────────────────────────────────────────
 
   function renderKPI(units) {
@@ -32,6 +42,148 @@ const Dashboard = (() => {
     if (!el) return;
     el.querySelector('.kpi-value').textContent = value;
     el.querySelector('.kpi-label').textContent = label;
+  }
+
+  // ── TDT × 학년 균형 히트맵 (IB PYP 인증 기준) ───────────
+  //
+  // 인증 규칙:
+  //  - 각 학년 × 각 TDT = 최소 1개 단원 (총 36 셀 모두 채워야 함)
+  //  - 같은 학년 + 같은 TDT가 2개 이상이면 ⚠️ (1개 권장)
+  //  - 6학년은 5+Exhibition 변형 허용 (현재 도구는 6 TDT 권장 기준 검사)
+  //
+  // 색상:
+  //   0개 → 빨강 (미충족)
+  //   1개 → 초록 (적정)
+  //   2개+ → 노랑 (과다)
+
+  function renderThemeBalance(units) {
+    const container = document.getElementById('theme-balance-container');
+    const summaryEl = document.getElementById('theme-balance-summary');
+    if (!container) return;
+
+    // grade × theme 카운트
+    const counts = {};
+    THEMES.forEach(t => {
+      counts[t.id] = {};
+      GRADES.forEach(g => { counts[t.id][g] = 0; });
+    });
+
+    (units || []).forEach(u => {
+      if (u.deleted === true) return;
+      // archived 단원도 인증 매트릭스 평가에서는 제외
+      if (u.status === 'archived') return;
+      if (counts[u.theme_id] && counts[u.theme_id][u.grade] !== undefined) {
+        counts[u.theme_id][u.grade]++;
+      }
+    });
+
+    // 통계
+    let missing = 0;        // 0개 셀
+    let okCells = 0;        // 1개 셀
+    let overCells = 0;      // 2개+ 셀
+    const missingList = [];
+    const overList = [];
+
+    THEMES.forEach(t => {
+      GRADES.forEach(g => {
+        const cnt = counts[t.id][g];
+        if (cnt === 0)      { missing++; missingList.push(`${g}학년 ${t.name}`); }
+        else if (cnt === 1) okCells++;
+        else                { overCells++; overList.push(`${g}학년 ${t.name} (${cnt}개)`); }
+      });
+    });
+
+    const totalCells = THEMES.length * GRADES.length;  // 36
+    const coveragePct = Math.round((okCells + overCells) / totalCells * 100);
+
+    // 요약 배지
+    if (summaryEl) {
+      const tone =
+        missing === 0 && overCells === 0 ? 'tbs-ok' :
+        missing > 0 ? 'tbs-warn' : 'tbs-info';
+      summaryEl.className = `theme-balance-summary ${tone}`;
+      summaryEl.innerHTML = `
+        <span class="tbs-cov">커버리지 ${coveragePct}%</span>
+        <span class="tbs-sep">·</span>
+        <span class="tbs-ok-cnt">✅ ${okCells}</span>
+        <span class="tbs-warn-cnt">⚠️ 미충족 ${missing}</span>
+        <span class="tbs-over-cnt">🔁 과다 ${overCells}</span>`;
+    }
+
+    // 테이블 생성
+    let html = '<table class="heatmap-table tdt-table"><thead><tr><th class="concept-col">TDT</th>';
+    GRADES.forEach(g => { html += `<th>${g}학년</th>`; });
+    html += '<th class="row-total">합계</th></tr></thead><tbody>';
+
+    THEMES.forEach(t => {
+      const rowSum = GRADES.reduce((s, g) => s + counts[t.id][g], 0);
+      html += `<tr>
+        <td style="font-weight:600;text-align:left">
+          ${t.name}
+          <br><span style="font-size:.7rem;color:var(--text-secondary);font-weight:400">${t.short}</span>
+        </td>`;
+      GRADES.forEach(g => {
+        const cnt = counts[t.id][g];
+        let cls, title;
+        if (cnt === 0) {
+          cls = 'tdt-cell tdt-miss';
+          title = `⚠️ ${g}학년에 ${t.name} 단원 없음 — 인증 미충족`;
+        } else if (cnt === 1) {
+          cls = 'tdt-cell tdt-ok';
+          title = `✅ ${g}학년 ${t.name}: 1개 (적정)`;
+        } else {
+          cls = 'tdt-cell tdt-over';
+          title = `🔁 ${g}학년 ${t.name}: ${cnt}개 (학년당 1개 권장)`;
+        }
+        html += `<td class="${cls}" title="${title}">${cnt || '—'}</td>`;
+      });
+      html += `<td class="row-total">${rowSum}</td>`;
+      html += '</tr>';
+    });
+
+    // 하단 — 학년별 합계
+    html += '<tr class="col-total-row"><td style="text-align:left;font-weight:600">학년별 합계</td>';
+    GRADES.forEach(g => {
+      const colSum = THEMES.reduce((s, t) => s + counts[t.id][g], 0);
+      const cls = colSum === THEMES.length ? 'col-total col-ok'
+                : colSum < THEMES.length   ? 'col-total col-miss'
+                                            : 'col-total col-over';
+      html += `<td class="${cls}" title="${g}학년 단원 ${colSum}개 (권장 ${THEMES.length}개)">${colSum}/${THEMES.length}</td>`;
+    });
+    html += `<td class="row-total"><strong>${okCells + overCells}/${totalCells}</strong></td></tr>`;
+    html += '</tbody></table>';
+
+    // 범례
+    html += `
+      <div class="heatmap-legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#fce8e6"></span>0개 ⚠️ 미충족</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#e6f4ea"></span>1개 ✅ 적정</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#fef7e0"></span>2개+ 🔁 과다</span>
+      </div>`;
+
+    // 경고 박스
+    if (missingList.length > 0 || overList.length > 0) {
+      html += '<div class="tdt-issues">';
+      if (missingList.length > 0) {
+        html += `<div class="tdt-issue tdt-issue-miss">
+          ⚠️ <strong>미충족 ${missingList.length}건</strong>: ${missingList.slice(0, 6).join(', ')}${missingList.length > 6 ? ` 외 ${missingList.length - 6}건` : ''}
+        </div>`;
+      }
+      if (overList.length > 0) {
+        html += `<div class="tdt-issue tdt-issue-over">
+          🔁 <strong>과다 ${overList.length}건</strong>: ${overList.slice(0, 6).join(', ')}${overList.length > 6 ? ` 외 ${overList.length - 6}건` : ''}
+        </div>`;
+      }
+      html += '</div>';
+    } else {
+      html += `<div class="tdt-issues">
+        <div class="tdt-issue tdt-issue-success">
+          ✅ <strong>완벽한 균형</strong> — 모든 학년이 6개 TDT를 정확히 1개씩 다루고 있습니다. (IB PYP 인증 매트릭스 충족)
+        </div>
+      </div>`;
+    }
+
+    container.innerHTML = html;
   }
 
   // ── Key Concepts 히트맵 ─────────────────────────────────
@@ -161,5 +313,5 @@ const Dashboard = (() => {
     return `${Math.floor(hr / 24)}일 전`;
   }
 
-  return { renderKPI, renderHeatmap, renderActivityFeed };
+  return { renderKPI, renderHeatmap, renderThemeBalance, renderActivityFeed };
 })();

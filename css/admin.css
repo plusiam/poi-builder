@@ -325,3 +325,88 @@
 .trash-table tbody tr:hover {
   background: #fafbfc;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   TDT × 학년 균형 히트맵 (v3.4, IB PYP 인증 매트릭스)
+   ═══════════════════════════════════════════════════════════ */
+
+.theme-balance-summary {
+  display: inline-flex;
+  gap: .5rem;
+  align-items: center;
+  font-size: .78rem;
+  padding: .25rem .65rem;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: var(--text);
+}
+.theme-balance-summary.tbs-ok    { background: #e6f4ea; color: #137333; }
+.theme-balance-summary.tbs-warn  { background: #fce8e6; color: #b00020; }
+.theme-balance-summary.tbs-info  { background: #fef7e0; color: #b06000; }
+.tbs-cov { font-weight: 700; }
+.tbs-sep { opacity: .4; }
+.tbs-warn-cnt { color: inherit; }
+.tbs-over-cnt { color: inherit; }
+
+/* TDT 셀 */
+.tdt-table .tdt-cell {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.tdt-table .tdt-miss {
+  background: #fce8e6;
+  color: #d93025;
+}
+.tdt-table .tdt-ok {
+  background: #e6f4ea;
+  color: #137333;
+}
+.tdt-table .tdt-over {
+  background: #fef7e0;
+  color: #b06000;
+}
+
+/* 합계 컬럼/로우 */
+.tdt-table .row-total {
+  background: #f8f9fa;
+  font-weight: 600;
+  text-align: center;
+}
+.tdt-table .col-total-row td {
+  border-top: 2px solid #5f6368;
+  font-weight: 600;
+  background: #f8f9fa;
+  text-align: center;
+}
+.tdt-table .col-ok    { color: #137333; }
+.tdt-table .col-miss  { color: #d93025; }
+.tdt-table .col-over  { color: #b06000; }
+
+/* 이슈 박스 */
+.tdt-issues {
+  margin-top: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.tdt-issue {
+  padding: .55rem .85rem;
+  border-radius: 6px;
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.tdt-issue-miss {
+  background: #fce8e6;
+  color: #b00020;
+  border: 1px solid #f6aea7;
+}
+.tdt-issue-over {
+  background: #fef7e0;
+  color: #b06000;
+  border: 1px solid #f5d97e;
+}
+.tdt-issue-success {
+  background: #e6f4ea;
+  color: #137333;
+  border: 1px solid #b8e0c2;
+}
