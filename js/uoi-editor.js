@@ -19,73 +19,30 @@ const UOIEditor = (() => {
     document.getElementById('editor-modal').classList.add('show');
     _render();
 
-    // 피드백 로드 (신규 UOI 제외)
-    if (!unit._new && unit.unit_id) {
-      _loadFeedback(unit.unit_id);
+    // 팀 피드백 모듈 초기화 (신규 UOI 제외)
+    if (typeof Comments !== 'undefined') {
+      Comments.init(unit._new ? null : unit.unit_id);
+      if (!unit._new && unit.unit_id) Comments.load();
     }
-  }
-
-  async function _loadFeedback(unitId) {
-    const tabBtn = document.getElementById('tab-btn-feedback');
-    try {
-      const data = await API.get('changelog', { unitId });
-      const comments = (Array.isArray(data) ? data : [])
-        .filter(c => c.action === 'comment');
-      _renderFeedback(comments);
-      if (comments.length > 0 && tabBtn) {
-        tabBtn.textContent = `수석교사 피드백 (${comments.length})`;
-        tabBtn.style.fontWeight = '700';
-        tabBtn.style.color = 'var(--primary)';
-      }
-    } catch (_) {
-      // 피드백 로드 실패는 조용히 무시
-    }
-  }
-
-  function _renderFeedback(comments) {
-    const thread = document.getElementById('feedback-thread');
-    const empty  = document.getElementById('feedback-empty');
-    if (!thread) return;
-
-    if (comments.length === 0) {
-      if (empty) empty.style.display = 'block';
-      thread.innerHTML = '';
-      return;
-    }
-    if (empty) empty.style.display = 'none';
-
-    thread.innerHTML = comments.map(c => {
-      const actor = c.actor_email?.split('@')[0] || '수석교사';
-      const time  = _formatTime(c.timestamp);
-      const body  = c.after_value || c.diff_summary || '';
-      return `
-        <div class="teacher-comment-item">
-          <div class="tci-meta">
-            <span class="tci-actor">📋 ${actor}</span>
-            <span class="tci-time">${time}</span>
-          </div>
-          <div class="tci-body">${_esc(body)}</div>
-        </div>`;
-    }).join('');
-  }
-
-  function _formatTime(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   }
 
   function close() {
     if (_isDirty && !confirm('저장하지 않은 변경사항이 있습니다. 닫으시겠습니까?')) return;
     document.getElementById('editor-modal').classList.remove('show');
     _isDirty = false;
-    // 피드백 탭 초기화
+
+    // 팀 피드백 탭 초기화
     const tabBtn = document.getElementById('tab-btn-feedback');
-    if (tabBtn) { tabBtn.textContent = '수석교사 피드백'; tabBtn.style.fontWeight = ''; tabBtn.style.color = ''; }
+    if (tabBtn) {
+      tabBtn.textContent = '💬 팀 피드백';
+      tabBtn.classList.remove('tab-badge-active');
+    }
     const thread = document.getElementById('feedback-thread');
     if (thread) thread.innerHTML = '';
     const empty = document.getElementById('feedback-empty');
     if (empty) empty.style.display = 'block';
+    const fbBody = document.getElementById('fb-body');
+    if (fbBody) fbBody.value = '';
   }
 
   function _render() {
@@ -267,6 +224,13 @@ const UOIEditor = (() => {
       _version = result.version;
       _isDirty = false;
       Utils.toast('저장됐습니다', 'success');
+
+      // 신규 단원 첫 저장 후 댓글 모듈에 unit_id 바인딩 + 로드
+      if (typeof Comments !== 'undefined' && _unit.unit_id) {
+        Comments.init(_unit.unit_id);
+        Comments.load();
+      }
+
       if (_onSave) _onSave({ ..._unit, ...data, version: _version });
     } catch (e) {
       if (e.code === 'CONFLICT') {

@@ -66,11 +66,11 @@ poi-builder/
 
 ## 문서
 
-- [개발 계획서 (v3.0)](docs/development-plan.md)
+- [개발 계획서 (v3.2)](docs/development-plan.md)
+- [Sheets 스키마 (v3.2)](docs/sheets-schema.md)
 - 사용자 매뉴얼 (Phase 4에서 작성 예정)
 - 관리자 매뉴얼 (Phase 4에서 작성 예정)
-- Sheets 스키마 문서 (Phase 0 완료 후 작성 예정)
-- GAS API 레퍼런스 (Phase 1 이후 작성 예정)
+- GAS API 레퍼런스 (Phase 2 이후 작성 예정)
 
 ## 작성자
 

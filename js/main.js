@@ -63,8 +63,16 @@ function renderHome() {
     grid.innerHTML = myUnits.map(u => buildUOICard(u)).join('');
   }
 
-  // 전체 매트릭스
-  MatrixView.render('matrix-container', _units, _userRole, onCellClick);
+  // 전체 매트릭스 — 드래그 후 서버 응답 반영을 위해 onReload 전달
+  MatrixView.render('matrix-container', _units, _userRole, onCellClick, {
+    onReload: async () => {
+      try {
+        const fresh = await API.get('units');
+        _units = fresh || [];
+        renderHome();
+      } catch (_) { /* 조용히 무시 */ }
+    },
+  });
 }
 
 function buildUOICard(u) {

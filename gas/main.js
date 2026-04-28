@@ -10,19 +10,28 @@ const ACTIONS_GET = {
   dashboard:  (p, email) => getDashboard(p, email),
   changelog:  (p, email) => getChangelog(p.unitId, email),
   snapshots:  (p, email) => getSnapshots(p, email),
+  comments:   (p, email) => getComments({ unit_id: p.unitId || p.unit_id }, email),
   export:     (p, email) => handleExport(p, email),
 };
 
 const ACTIONS_POST = {
-  createUnit:   (p, email) => createUnit(p, email),
-  updateUnit:   (p, email) => updateUnit(p, email),
-  submitReview: (p, email) => submitReview(p, email),
-  approveUnit:  (p, email) => approveUnit(p, email),
-  rejectUnit:   (p, email) => rejectUnit(p, email),
-  finalizeUnit: (p, email) => finalizeUnit(p, email),
-  unlockUnit:   (p, email) => unlockUnit(p, email),
-  addComment:   (p, email) => addComment(p, email),
-  updateUser:   (p, email) => updateUser(p, email),
+  createUnit:     (p, email) => createUnit(p, email),
+  updateUnit:     (p, email) => updateUnit(p, email),
+  // 드래그 이동 (v3.2, Phase 2-B)
+  moveUnit:       (p, email) => moveUnit(p, email),
+  submitReview:   (p, email) => submitReview(p, email),
+  approveUnit:    (p, email) => approveUnit(p, email),
+  rejectUnit:     (p, email) => rejectUnit(p, email),
+  finalizeUnit:   (p, email) => finalizeUnit(p, email),
+  unlockUnit:     (p, email) => unlockUnit(p, email),
+  // 댓글 시스템 (v3.1, Phase 2-A)
+  addComment:     (p, email) => addComment(p, email),
+  updateComment:  (p, email) => updateComment(p, email),
+  deleteComment:  (p, email) => deleteComment(p, email),
+  reactComment:   (p, email) => reactComment(p, email),
+  resolveComment: (p, email) => resolveComment(p, email),
+  // 사용자 관리
+  updateUser:     (p, email) => updateUser(p, email),
 };
 
 function doGet(e) {

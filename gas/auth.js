@@ -1,6 +1,15 @@
 // 인증 · 권한 체크
 
-const ROLES = { viewer: 0, editor: 1, reviewer: 2, admin: 3 };
+// 역할 위계 (v3.1)
+//  viewer    : 조회만
+//  commenter : 조회 + 댓글·이모지·해결 처리 (편집 불가)
+//  editor    : 본인 학년 UOI 편집 + 모든 댓글
+//  approver  : 승인·반려 (구 reviewer)
+//  admin    : 모든 권한
+//
+// 호환성: 기존 'reviewer' 값은 'approver'로 자동 매핑된다.
+const ROLES = { viewer: 0, commenter: 1, editor: 2, approver: 3, admin: 4 };
+const ROLE_ALIASES = { reviewer: 'approver' };
 
 // Google ID Token 검증 → 이메일 반환 (실패 시 null)
 function verifyToken_(e) {
@@ -23,12 +32,15 @@ function verifyToken_(e) {
 }
 
 // Users 시트에서 이메일 조회 → 역할 반환 (없으면 null)
+// 헤더 기반 조회로 변경 (컬럼 추가에 견고)
 function getRole_(email) {
   const sheet = getSheet_('Users');
+  const map = headerMap_(sheet);
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === email && data[i][4] === true) {
-      return data[i][2]; // role 컬럼
+    if (data[i][map.email] === email && data[i][map.active] === true) {
+      const raw = data[i][map.role];
+      return ROLE_ALIASES[raw] || raw;
     }
   }
   return null;
@@ -37,7 +49,7 @@ function getRole_(email) {
 // 최소 역할 체크 — 부족하면 예외 발생
 function requireRole_(email, minRole) {
   const role = getRole_(email);
-  if (!role || ROLES[role] < ROLES[minRole]) {
+  if (!role || ROLES[role] === undefined || ROLES[role] < ROLES[minRole]) {
     const err = new Error('권한이 없습니다');
     err.code_ = 'FORBIDDEN';
     throw err;

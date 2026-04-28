@@ -73,6 +73,14 @@ function renderDashboard() {
       showAdminSection('review');
       selectReviewUnit(cell.unit_id);
     }
+  }, {
+    onReload: async () => {
+      try {
+        const dashData = await API.get('dashboard');
+        _units = dashData.units || [];
+        renderDashboard();
+      } catch (_) { /* 무시 */ }
+    },
   });
 }
 

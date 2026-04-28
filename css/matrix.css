@@ -103,3 +103,89 @@
 }
 .empty-state .icon { font-size: 3rem; margin-bottom: .75rem; }
 .empty-state p { margin-bottom: 1rem; }
+
+/* ═══════════════════════════════════════════════════════════
+   드래그 재배치 (v3.2, Phase 2-B)
+   ═══════════════════════════════════════════════════════════ */
+
+/* 매트릭스가 드래그 활성화되면 셀에 시각 단서 */
+.matrix-table.matrix-draggable .uoi-cell {
+  position: relative;
+  min-height: 60px;
+}
+
+/* 드래그 중 매트릭스 전체 드롭존 강조 */
+body.matrix-dragging .matrix-table.matrix-draggable .uoi-cell {
+  outline: 2px dashed transparent;
+  transition: outline-color .15s ease, background .15s ease;
+}
+body.matrix-dragging .matrix-table.matrix-draggable .uoi-cell:hover {
+  outline-color: var(--primary, #1a73e8);
+  background: rgba(26, 115, 232, .04) !important;
+}
+
+/* 카드 자체 — 드래그 가능한 것과 잠금 카드 구분 */
+.uoi-card-mini {
+  position: relative;
+  cursor: grab;
+}
+.uoi-card-mini:active { cursor: grabbing; }
+
+.uoi-card-mini.uoi-no-drag,
+.uoi-card-mini.uoi-locked {
+  cursor: pointer;
+  opacity: .9;
+}
+.uoi-card-mini.uoi-locked {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(0,0,0,.02),
+    rgba(0,0,0,.02) 6px,
+    transparent 6px,
+    transparent 12px
+  ), inherit;
+}
+
+/* 자물쇠 배지 */
+.uoi-lock {
+  position: absolute;
+  top: .35rem;
+  right: .35rem;
+  font-size: .8rem;
+  padding: .1rem .25rem;
+  border-radius: 4px;
+  background: rgba(255,255,255,.85);
+  cursor: help;
+  z-index: 2;
+  line-height: 1;
+}
+
+/* SortableJS 상태 클래스 */
+.uoi-ghost {
+  opacity: .35;
+  transform: scale(.96);
+  border: 2px dashed var(--primary, #1a73e8) !important;
+}
+.uoi-chosen {
+  box-shadow: 0 6px 18px rgba(0,0,0,.15);
+  transform: scale(1.02);
+}
+.uoi-dragging {
+  cursor: grabbing !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.25);
+  z-index: 10;
+}
+
+/* 헬프 툴팁 (선택 — 매트릭스 상단 또는 호버 안내) */
+.matrix-drag-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .78rem;
+  color: var(--text-secondary);
+  padding: .25rem .6rem;
+  background: #f1f5f9;
+  border-radius: 999px;
+  margin-bottom: .5rem;
+}
+.matrix-drag-hint::before { content: '🤚'; }

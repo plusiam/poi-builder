@@ -135,6 +135,176 @@ function updateUnit(params, email) {
   return { unit_id, version: newVersion };
 }
 
+// ── UOI 드래그 이동 (Phase 2-B, v3.2) ─────────────────────
+//
+// 5중 검증:
+//   1. 권한      — editor 이상 + 본인 소유 또는 admin
+//   2. 잠금      — locked=false, status ∈ {draft, in_review} 만 허용
+//   3. 낙관적 락 — expected_version 일치
+//   4. TDT 균형  — 같은 학년에 동일 theme_id가 2개 이상이면 ⚠️ (warning)
+//   5. 학년군 정합성 — subject_links 코드의 grade_group이 새 학년과 불일치 시 ⚠️ (warning)
+//
+// 균형/학년군 위반은 차단(에러)이 아닌 경고로 반환하여 UI에서 사용자에게 알린다.
+// 차단 정책은 학교별로 다르므로, 우선 경고 모드로 둔다.
+//
+// 입력: { unit_id, new_grade, new_theme_id, new_order, expected_version }
+// 반환: { unit_id, version, warnings: [{type, message, ...}] }
+
+function moveUnit(params, email) {
+  const role = requireRole_(email, 'editor');
+  if (!params.unit_id) throw appError_('VALIDATION', 'unit_id가 필요합니다');
+  if (params.expected_version === undefined) throw appError_('VALIDATION', 'expected_version이 필요합니다');
+
+  const newGrade = parseInt(params.new_grade);
+  const newTheme = String(params.new_theme_id || '');
+  const newOrder = Number.isFinite(parseInt(params.new_order)) ? parseInt(params.new_order) : 0;
+
+  if (!(newGrade >= 1 && newGrade <= 6)) throw appError_('VALIDATION', '학년은 1~6이어야 합니다');
+  if (!VALID_THEMES_.includes(newTheme)) throw appError_('VALIDATION', `허용되지 않은 theme_id: ${newTheme}`);
+
+  const { sheet, rowIdx, data, map } = findUnitRow_(params.unit_id);
+
+  // (1) 권한
+  if (role !== 'admin' && data[map.owner_email] !== email) {
+    throw appError_('FORBIDDEN', '본인 소유 단원만 이동할 수 있습니다');
+  }
+
+  // (2) 잠금/상태
+  if (data[map.locked] === true) throw appError_('LOCKED', '확정된 UOI는 이동할 수 없습니다');
+  const status = data[map.status];
+  if (!['draft', 'in_review'].includes(status)) {
+    throw appError_('LOCKED', `'${status}' 상태에서는 이동할 수 없습니다 (draft/in_review만 가능)`);
+  }
+
+  // (3) 낙관적 락
+  if (data[map.version] !== params.expected_version) {
+    throw appError_('CONFLICT', '다른 사용자가 먼저 저장했습니다. 최신본을 다시 불러오세요.');
+  }
+
+  const oldGrade = data[map.grade];
+  const oldTheme = data[map.theme_id];
+  const oldOrder = (map.display_order !== undefined && data[map.display_order] !== '') ? data[map.display_order] : 0;
+
+  // 변경 사항 적용
+  const newVersion = params.expected_version + 1;
+  const ts = now_();
+  sheet.getRange(rowIdx, map.grade + 1).setValue(newGrade);
+  sheet.getRange(rowIdx, map.theme_id + 1).setValue(newTheme);
+  if (map.display_order !== undefined) {
+    sheet.getRange(rowIdx, map.display_order + 1).setValue(newOrder);
+  }
+  sheet.getRange(rowIdx, map.updated_at + 1).setValue(ts);
+  sheet.getRange(rowIdx, map.updated_by + 1).setValue(email);
+  sheet.getRange(rowIdx, map.version + 1).setValue(newVersion);
+
+  // 같은 (grade, theme) 내 다른 단원들의 display_order 정규화 (선택, 충돌 방지)
+  if (map.display_order !== undefined) {
+    normalizeDisplayOrder_(sheet, map, newGrade, newTheme);
+  }
+
+  // Changelog
+  appendChangelog_({
+    unit_id: params.unit_id,
+    actor_email: email,
+    action: 'move',
+    field: 'grade,theme_id,display_order',
+    before_value: JSON.stringify({ grade: oldGrade, theme_id: oldTheme, order: oldOrder }),
+    after_value: JSON.stringify({ grade: newGrade, theme_id: newTheme, order: newOrder }),
+    diff_summary: `이동: ${oldGrade}학년/${oldTheme} → ${newGrade}학년/${newTheme}`,
+  });
+
+  // (4) TDT 균형 검증 (이동 후 상태 기준)
+  const warnings = [];
+  const balanceWarn = checkThemeBalance_(newGrade, newTheme);
+  if (balanceWarn) warnings.push(balanceWarn);
+
+  // (5) 학년군 정합성 검증
+  if (oldGrade !== newGrade) {
+    const subjLinks = parseJSONSafe_(data[map.subject_links], []);
+    const curriculumWarn = checkCurriculumGroup_(subjLinks, newGrade);
+    if (curriculumWarn) warnings.push(curriculumWarn);
+  }
+
+  return { unit_id: params.unit_id, version: newVersion, warnings };
+}
+
+// ── 검증 헬퍼 ────────────────────────────────────────────
+
+const VALID_THEMES_ = [
+  'who_we_are', 'where_we_are_in_place_and_time', 'how_we_express_ourselves',
+  'how_the_world_works', 'how_we_organize_ourselves', 'sharing_the_planet',
+];
+
+function checkThemeBalance_(grade, themeId) {
+  const all = sheetToArray_('Units');
+  const sameCell = all.filter(u =>
+    parseInt(u.grade) === grade && u.theme_id === themeId &&
+    u.status !== 'archived'
+  );
+  if (sameCell.length >= 2) {
+    return {
+      type: 'theme_balance',
+      severity: 'warning',
+      message: `${grade}학년에 '${themeId}' 주제가 ${sameCell.length}개입니다. IB는 학년당 TDT 1개 권장입니다.`,
+      count: sameCell.length,
+    };
+  }
+  return null;
+}
+
+function checkCurriculumGroup_(subjectLinks, newGrade) {
+  if (!Array.isArray(subjectLinks) || subjectLinks.length === 0) return null;
+
+  // 새 학년의 학년군: 1-2 / 3-4 / 5-6
+  const targetGroup = newGrade <= 2 ? '1-2' : (newGrade <= 4 ? '3-4' : '5-6');
+
+  // [4도01-01] 형식에서 첫 숫자가 학년군 상한 (예: 4 → 3-4 학년군)
+  const mismatched = [];
+  subjectLinks.forEach(code => {
+    if (typeof code !== 'string') return;
+    // [4도01-01] [6사02-03] 등 패턴
+    const m = code.match(/^\[(\d)/);
+    if (!m) return;
+    const upper = parseInt(m[1]);
+    const codeGroup = upper <= 2 ? '1-2' : (upper <= 4 ? '3-4' : '5-6');
+    if (codeGroup !== targetGroup) {
+      mismatched.push({ code, codeGroup, targetGroup });
+    }
+  });
+
+  if (mismatched.length > 0) {
+    return {
+      type: 'curriculum_group',
+      severity: 'warning',
+      message: `${mismatched.length}개 성취기준이 새 학년군(${targetGroup})과 불일치합니다. 재매핑이 필요할 수 있습니다.`,
+      mismatched,
+    };
+  }
+  return null;
+}
+
+function normalizeDisplayOrder_(sheet, map, grade, themeId) {
+  // 같은 셀 내 단원들의 display_order를 0,1,2... 로 재정규화
+  const data = sheet.getDataRange().getValues();
+  const items = [];
+  for (let i = 1; i < data.length; i++) {
+    if (parseInt(data[i][map.grade]) === grade && data[i][map.theme_id] === themeId) {
+      const order = data[i][map.display_order];
+      items.push({ rowIdx: i + 1, order: Number.isFinite(parseInt(order)) ? parseInt(order) : 0 });
+    }
+  }
+  items.sort((a, b) => a.order - b.order);
+  items.forEach((item, idx) => {
+    sheet.getRange(item.rowIdx, map.display_order + 1).setValue(idx);
+  });
+}
+
+function parseJSONSafe_(v, fallback) {
+  if (v === '' || v === null || v === undefined) return fallback;
+  if (typeof v !== 'string') return v;
+  try { return JSON.parse(v); } catch (_) { return fallback; }
+}
+
 // ── 내부 헬퍼 ─────────────────────────────────────────────
 
 function sheetToArray_(name) {

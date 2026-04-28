@@ -12,13 +12,13 @@ function submitReview(params, email) {
 }
 
 function approveUnit(params, email) {
-  return transition_(params.unit_id, email, 'approve', 'reviewer',
+  return transition_(params.unit_id, email, 'approve', 'approver',
     params.comment || '승인', params.comment);
 }
 
 function rejectUnit(params, email) {
   if (!params.reason) throw appError_('VALIDATION', '반려 사유를 입력해주세요');
-  return transition_(params.unit_id, email, 'reject', 'reviewer', `반려: ${params.reason}`, params.reason);
+  return transition_(params.unit_id, email, 'reject', 'approver', `반려: ${params.reason}`, params.reason);
 }
 
 function finalizeUnit(params, email) {

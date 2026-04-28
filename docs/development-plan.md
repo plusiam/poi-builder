@@ -12,7 +12,7 @@
 | 인증         | Google Sign-In (GIS)                                    |
 | 작성자       | 룰루랄라 한기쌤 (대구 남부초)                           |
 | 작성일       | 2026-04-18                                              |
-| 개발 기간    | 9주 (Phase 0 ~ Phase 4)                                 |
+| 개발 기간    | 10주 (Phase 0 ~ Phase 4, v3.1에서 Phase 2 +1주 확장)   |
 
 ---
 
@@ -87,13 +87,16 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 
 ### 3.1 주요 사용자 (Persona)
 
-| 역할                       | 이름(예)  | 목표                                     |
-| -------------------------- | --------- | ---------------------------------------- |
-| **수석교사 (Admin)**       | 여한기    | 학교 전체 POI 설계·검토·확정·공문용 출력 |
-| **학년부장 (Editor)**      | 김○○      | 담당 학년 6개 UOI 작성, 동료와 검토      |
-| **학년 동료 (Editor)**     | 박○○      | 자기 학년 UOI 초안 작성·수정             |
-| **외부 검토자 (Reviewer)** | 전문가    | 코멘트·피드백만 (편집 권한 없음)         |
-| **열람자 (Viewer)**        | 교감·교장 | 진행 상황 확인만                         |
+| 역할                        | 이름(예)  | 목표                                                  |
+| --------------------------- | --------- | ----------------------------------------------------- |
+| **수석교사 (Admin)**        | 여한기    | 학교 전체 POI 설계·검토·확정·공문용 출력              |
+| **PYP 코디네이터 (Approver)** | 코디    | 단원 승인·반려 (수석과 분리 가능)                     |
+| **학년부장 (Editor)**       | 김○○      | 담당 학년 6개 UOI 작성, 동료와 검토                   |
+| **학년 동료 (Editor)**      | 박○○      | 자기 학년 UOI 초안 작성·수정                          |
+| **팀 피드백 참여자 (Commenter)** | 동학년·전담 | **모든 단원에 댓글·이모지 반응**(편집 권한 없음) |
+| **열람자 (Viewer)**         | 교감·교장 | 진행 상황 확인만                                      |
+
+> v3.1 변경: 기존 `Reviewer` 역할은 `Approver`로 개명, 신규 `Commenter` 역할 추가. 피드백 권한과 승인 권한을 분리해 **팀원 전체 피드백** 모델을 지원한다.
 
 ### 3.2 대표 시나리오
 
@@ -101,9 +104,11 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 
 > 3학년 부장 김 선생님이 홈 화면에서 '3학년 Sharing the planet' UOI를 신규 생성 → Central Idea를 고심해 입력 → Lines of Inquiry 3개 작성 → Key Concepts 3개 선택 → 2022 개정 도덕·과학 성취기준 태깅 → 임시 저장 → 다음 학년 협의회 전까지 동료와 같이 보며 수정
 
-**S2. 검토 요청 → 피드백 → 수정**
+**S2. 검토 요청 → 팀 피드백 → 수정**
 
-> 김 선생님이 초안 완성 후 [검토 요청] 클릭 → 상태 `in_review` 전환 → 수석교사·동료 학년부장에게 알림 → 수석교사가 "Central Idea가 사실 나열에 가깝다" 코멘트 → 김 선생님 수정 → 재제출
+> 김 선생님이 초안 완성 후 [검토 요청] 클릭 → 상태 `in_review` 전환 → **팀원 전체에게 알림** → 동학년 박 선생님이 "Central Idea가 사실 나열에 가깝다" 코멘트, 도덕 전담이 LOI #2 옆에 ❤️ + "[6도01-03] 매핑 검토 필요" 앵커 댓글, PYP 코디네이터가 ✅ Resolve 처리 → 김 선생님 수정 → PYP 코디네이터가 [승인] → 수석교사가 [확정]
+
+> **피드백과 승인의 분리**: 누구나 댓글·이모지로 피드백할 수 있으나, `approve/reject`는 `approver`·`admin`만 가능.
 
 **S3. 관리자 확정**
 
@@ -116,6 +121,10 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 **S5. 학년 종료 후 아카이브**
 
 > 학년말 수석교사가 2026학년도 POI를 `archived` 처리 + 스냅샷 일괄 생성 → 2027학년도 새 POI를 Fork → 전환기 신(新) 기술어 적용 시작
+
+**S6. 매트릭스에서 UOI 드래그 재배치**
+
+> Phase 2 협의 중반, 학년부 김 선생님이 "이 단원은 'How the world works'보다 'Sharing the planet'이 더 어울린다"고 제안 → 매트릭스 셀에서 카드를 드래그해 다른 TDT 셀로 이동 → drop 시점에 (1) **TDT 균형 검증** (2) **2022 개정 학년군 정합성 검증** (3) **낙관적 잠금 충돌 검증** 자동 실행 → 학년 변경으로 [4사01-03] 코드가 무효화돼 ⚠️ 경고 배지 표시 → 김 선생님이 [6사…] 코드로 재매핑 → Changelog에 `action: 'move'` 기록
 
 ---
 
@@ -277,14 +286,17 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 
 ### 6.3 `Users` 시트 스키마
 
-| 컬럼             | 타입     | 설명                                 |
-| ---------------- | -------- | ------------------------------------ |
-| `email`          | string   | Google 계정 (PK)                     |
-| `display_name`   | string   | 표시 이름                            |
-| `role`           | enum     | `viewer`/`editor`/`reviewer`/`admin` |
-| `assigned_grade` | number   | 담당 학년 (optional)                 |
-| `active`         | boolean  | 활성 여부                            |
-| `added_at`       | datetime | 추가 시각                            |
+| 컬럼             | 타입     | 설명                                                          |
+| ---------------- | -------- | ------------------------------------------------------------- |
+| `email`          | string   | Google 계정 (PK)                                              |
+| `display_name`   | string   | 표시 이름                                                     |
+| `role`           | enum     | `viewer`/`commenter`/`editor`/`approver`/`admin` (v3.1)       |
+| `assigned_grade` | number   | 담당 학년 (optional)                                          |
+| `subject_tags`   | JSON     | 담당 교과 태그 배열 — `["도덕","사회"]` 등 (멘션·필터용, v3.1) |
+| `active`         | boolean  | 활성 여부                                                     |
+| `added_at`       | datetime | 추가 시각                                                     |
+
+> **마이그레이션**: 기존 `reviewer` 사용자는 `approver`로 자동 변환. `Comments` 권한이 필요한 동학년 동료는 `editor` 또는 `commenter`로 재배정.
 
 ### 6.4 `Changelog` 시트 스키마
 
@@ -294,7 +306,7 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 | `unit_id`      | 대상 UOI                                              |
 | `timestamp`    | 변경 시각                                             |
 | `actor_email`  | 변경자                                                |
-| `action`       | `create`/`update`/`status_change`/`finalize`/`unlock` |
+| `action`       | `create`/`update`/`status_change`/`finalize`/`unlock`/`move`/`comment`/`react`/`resolve` (v3.1) |
 | `field`        | 변경 필드명                                           |
 | `before_value` | 이전 값 (JSON 문자열)                                 |
 | `after_value`  | 이후 값 (JSON 문자열)                                 |
@@ -306,6 +318,27 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 
 - 컬럼은 `Units`와 동일 + `snapshot_id`, `snapshot_at`, `snapshot_by`
 - 감사·복원·학기말 보고용
+
+### 6.6 `Comments` 시트 스키마 (v3.1 확장)
+
+| 컬럼            | 타입     | 설명                                                                  |
+| --------------- | -------- | --------------------------------------------------------------------- |
+| `comment_id`    | string   | UUID, PK                                                              |
+| `unit_id`       | string   | 대상 UOI                                                              |
+| `parent_id`     | string   | 부모 댓글 ID (스레드용, null = 최상위) **신규**                       |
+| `anchor_field`  | enum     | 댓글이 달린 필드 — `unit`(전체)/`central_idea`/`loi:0`~`loi:3`/`key_concepts`/`subject_links`/`action` **신규** |
+| `author_email`  | string   | 작성자                                                                |
+| `body`          | string   | 본문 (Markdown 허용, 최대 2000자)                                     |
+| `mentions`      | JSON     | 멘션된 이메일 배열 — `["a@x","b@y"]` **신규**                         |
+| `reactions`     | JSON     | `{"👍":["a@x"],"❤️":["b@y","c@z"]}` 이모지별 사용자 배열 **신규**     |
+| `resolved`      | boolean  | 해결 상태 (Google Docs 스타일) **신규**                               |
+| `resolved_by`   | string   | 해결 처리자 이메일 **신규**                                           |
+| `resolved_at`   | datetime | 해결 시각 **신규**                                                    |
+| `created_at`    | datetime | 작성 시각                                                             |
+| `updated_at`    | datetime | 최종 수정 시각 **신규**                                               |
+| `deleted`       | boolean  | 소프트 삭제 플래그 **신규**                                           |
+
+> **확장 정책**: 댓글 본문 수정·삭제는 작성자 또는 `admin`만 가능. 삭제는 소프트 삭제(`deleted=true`)로 감사 추적 유지. 한 단원 댓글이 100개를 넘으면 `Comments_Archive_<연도>` 시트로 자동 분리.
 
 ---
 
@@ -341,8 +374,14 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 | POST   | `rejectUnit`   | 반려                    | reviewer/admin           |
 | POST   | `finalizeUnit` | 확정 + 스냅샷           | admin                    |
 | POST   | `unlockUnit`   | 잠금 해제               | admin                    |
-| POST   | `addComment`   | 코멘트 추가             | reviewer                 |
-| POST   | `updateUser`   | 사용자 권한 변경        | admin                    |
+| POST   | `addComment`     | 코멘트 추가 (anchor_field/parent_id/mentions 지원) | **commenter** (v3.1) |
+| POST   | `updateComment`  | 코멘트 본문 수정 (작성자 본인) **신규**            | commenter            |
+| POST   | `deleteComment`  | 코멘트 소프트 삭제 (작성자 또는 admin) **신규**    | commenter            |
+| POST   | `reactComment`   | 이모지 반응 토글 **신규**                          | commenter            |
+| POST   | `resolveComment` | 해결 상태 토글 **신규**                            | commenter            |
+| GET    | `comments`       | 단원별 댓글 목록 **신규**                          | viewer               |
+| POST   | `moveUnit`       | UOI 학년·TDT 이동 (드래그) **신규** Phase 2-B      | editor (소유자) / admin |
+| POST   | `updateUser`     | 사용자 권한 변경                                   | admin                |
 
 ### 7.3 `updateUnit` 처리 의사코드 (낙관적 락)
 
@@ -364,20 +403,40 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 
 ## 8. 권한 체계와 워크플로우
 
-### 8.1 역할별 권한
+### 8.1 역할별 권한 (v3.1)
 
-| 액션                 | viewer | editor | reviewer | admin |
-| -------------------- | ------ | ------ | -------- | ----- |
-| 전체 POI 조회        | ✅     | ✅     | ✅       | ✅    |
-| UOI 편집 (본인 학년) | ❌     | ✅     | ❌       | ✅    |
-| UOI 편집 (타 학년)   | ❌     | ❌     | ❌       | ✅    |
-| 코멘트 작성          | ❌     | ✅     | ✅       | ✅    |
-| 검토 요청            | ❌     | ✅     | ❌       | ✅    |
-| 승인 / 반려          | ❌     | ❌     | ✅       | ✅    |
-| 확정 (finalize)      | ❌     | ❌     | ❌       | ✅    |
-| 잠금 해제            | ❌     | ❌     | ❌       | ✅    |
-| 사용자 관리          | ❌     | ❌     | ❌       | ✅    |
-| 전체 내보내기        | 부분   | 부분   | 부분     | ✅    |
+| 액션                       | viewer | commenter | editor | approver | admin |
+| -------------------------- | ------ | --------- | ------ | -------- | ----- |
+| 전체 POI 조회              | ✅     | ✅        | ✅     | ✅       | ✅    |
+| 코멘트 작성·이모지 반응    | ❌     | ✅        | ✅     | ✅       | ✅    |
+| 코멘트 해결 처리           | ❌     | ✅        | ✅     | ✅       | ✅    |
+| UOI 편집 (본인 학년)       | ❌     | ❌        | ✅     | ❌       | ✅    |
+| UOI 편집 (타 학년)         | ❌     | ❌        | ❌     | ❌       | ✅    |
+| UOI 드래그 이동 (소유자)   | ❌     | ❌        | ✅     | ❌       | ✅    |
+| UOI 드래그 이동 (타 학년)  | ❌     | ❌        | ❌     | ❌       | ✅    |
+| 검토 요청                  | ❌     | ❌        | ✅     | ❌       | ✅    |
+| 승인 / 반려                | ❌     | ❌        | ❌     | ✅       | ✅    |
+| 확정 (finalize)            | ❌     | ❌        | ❌     | ❌       | ✅    |
+| 잠금 해제                  | ❌     | ❌        | ❌     | ❌       | ✅    |
+| 사용자 관리                | ❌     | ❌        | ❌     | ❌       | ✅    |
+| 전체 내보내기              | 부분   | 부분      | 부분   | 부분     | ✅    |
+
+> **핵심 변경**: `commenter` 역할 신설로 **편집 권한 없이 모든 단원에 피드백** 가능. `reviewer`는 `approver`로 개명되며 승인 권한만 보유. **피드백(누구나)과 승인(approver+)의 분리**가 v3.1 핵심.
+
+### 8.1.1 드래그 이동 권한·검증 규칙 (v3.1, Phase 2-B)
+
+**드래그 가능 조건** (모두 충족):
+1. 단원 상태 ∈ `{draft, in_review}` (approved/finalized/archived는 자물쇠 표시)
+2. `locked == false`
+3. 작성자(`owner_email`) 본인이거나 `admin`
+4. 해당 단원에 활성 충돌(다른 사용자가 편집 중인 미저장 변경)이 없어야 함
+
+**drop 시점 3중 검증**:
+- **TDT 균형**: 이동 후 해당 학년에 동일 `theme_id`가 2개 이상이면 ⚠️ 경고(저장은 허용, 학교 정책에 따라 차단도 가능)
+- **학년군 정합성**: `subject_links`의 성취기준 코드가 새 학년의 학년군(3-4 또는 5-6)에 속하지 않으면 ⚠️ 경고 + 재매핑 유도
+- **낙관적 락**: 클라이언트가 보유한 `version`과 서버 시점 `version`이 일치해야 함, 불일치 시 `CONFLICT` 반환
+
+**기록**: Changelog `action: 'move'`, `before_value: {grade, theme_id, order}`, `after_value: {grade, theme_id, order}`
 
 ### 8.2 UOI 상태 전이도
 
@@ -437,11 +496,11 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
   7. 연계 교과 & 성취기준
   8. 기간 & 메모
   9. 검토·제출
-- **우(30%)**: 컨텍스트 도움말 패널
-  - 현재 필드 관련 가이드
-  - Central Idea 예시
-  - 선택한 Key Concept의 핵심 질문
-  - 변경 이력 미리보기
+- **우(30%)**: 탭 전환 패널 (v3.1)
+  - **도움말 탭**: 현재 필드 가이드, Central Idea 예시, 선택한 Key Concept 핵심 질문
+  - **댓글 탭** 💬: 단원 전체 댓글 + 필드별 앵커 댓글 (`anchor_field`) 스레드, 멘션·이모지·해결 토글
+  - **이력 탭**: 변경 이력 타임라인
+- **인라인 댓글 마커** (v3.1): 각 필드 우측에 💬 배지(미해결 댓글 수)·🔵 점(미열람) 표시, 클릭 시 우측 패널 댓글 탭으로 점프
 - **하단**: [임시 저장] [검토 요청 제출] [취소]
 - **실시간 검증**: 입력 즉시 물음표·개수·형식 체크
 
@@ -451,10 +510,14 @@ IB PYP의 **Programme of Inquiry(POI)**를 학교 단위로 설계·검토·확�
 
 - **상단 KPI 카드 4개**
   - 전체 UOI 수 / 확정 완료 / 검토 중 / 미착수
-- **중앙 매트릭스**
-  - 학년×주제 그리드
+- **중앙 매트릭스** (v3.1: 드래그 지원)
+  - 학년×주제 그리드, 카드형 UOI
   - 셀 색상: 회색=draft, 노랑=in_review, 파랑=approved, 초록=finalized
   - 셀 클릭 → UOI 상세
+  - **드래그**: SortableJS 기반, 같은 셀 내 순서 변경 + 셀 간 이동 (학년·TDT 변경)
+  - **잠금 카드**: approved/finalized/archived 또는 `locked=true`는 🔒 자물쇠 + 드래그 비활성
+  - **드롭 검증 토스트**: ⚠️ TDT 균형 / ⚠️ 학년군 정합성 / ❌ 충돌 3종 즉시 피드백
+  - **댓글 배지**: 카드 우상단 💬 N (미해결 댓글 수), 미열람 🔵 점
 - **우측 활동 타임라인**
   - 최근 24시간 활동 피드 (누가 뭘 언제)
 - **Key Concepts 균형 히트맵**
@@ -674,19 +737,56 @@ poi-builder/
 
 ---
 
-### Phase 2 — 워크플로우 (2주)
+### Phase 2 — 워크플로우 + 협업 확장 (3주, v3.1 확장)
 
-**목표**: 초안 → 검토 → 승인 → 확정 전 경로 동작
+**목표**: 초안 → 팀 피드백 → 승인 → 확정 전 경로 동작 + UOI 드래그 재배치
+
+#### Phase 2-Core — 상태 전이·관리자 뷰 (1주)
 
 - [ ] 상태 전이 엔드포인트 (`submitReview`, `approveUnit`, `rejectUnit`, `finalizeUnit`, `unlockUnit`)
-- [ ] Comments 시트 + 프론트 UI
 - [ ] Changelog 전 엔드포인트 적용
 - [ ] 관리자 대시보드 (KPI + 매트릭스 + 활동 피드)
 - [ ] Key Concepts 균형 히트맵
 - [ ] Snapshots 시트 자동 생성 (finalize 시)
 - [ ] 잠금 해제 기능
 
-**완료 기준**: 한 UOI가 draft → in_review → approved → finalized 전체 경로를 거치며, 각 단계 이력이 남음.
+#### Phase 2-A — 팀 피드백 댓글 시스템 (1주, v3.1 신규)
+
+> **합의 배경**: IB Collaborative Planning 정신에 부합. 수석 단독 검토 병목 해소, 교과별 전문가 피드백 활성화.
+
+- [ ] **역할 모델 확장**: `Users.role` enum에 `commenter` 추가, 기존 `reviewer` → `approver` 마이그레이션 스크립트
+- [ ] **Comments 시트 스키마 확장**: `parent_id`, `anchor_field`, `mentions`, `reactions`, `resolved`, `resolved_by`, `resolved_at`, `updated_at`, `deleted` 컬럼 추가
+- [ ] **GAS 엔드포인트**: `addComment`(확장), `updateComment`, `deleteComment`, `reactComment`, `resolveComment`, `comments`(GET)
+- [ ] **권한 매트릭스 갱신**: [`gas/users.js`](../gas/users.js)의 `requireRole_` 호출에 `commenter` 등급 반영
+- [ ] **프론트 댓글 패널**: [`js/uoi-editor.js`](../js/uoi-editor.js) 우측 탭에 댓글 스레드, 멘션 자동완성(@email), 이모지 반응 토글, 해결 처리
+- [ ] **인라인 앵커 댓글**: 각 필드(central_idea, loi:N, key_concepts, subject_links, action) 옆 💬 배지 + 클릭 점프
+- [ ] **알림**: 자기 단원 댓글/멘션 발생 시 매트릭스 카드 배지 + 선택적 메일(GAS `MailApp`)
+- [ ] **잠금 정책**: `finalized` 단원은 일반 댓글 잠금, 별도 '회고 댓글' 모드만 활성
+
+**완료 기준**: 동학년 동료·전담교사·코디네이터가 한 UOI에 각각 댓글·멘션·이모지 반응을 달고, PYP 코디네이터가 ✅ Resolve 처리 → 작성자가 알림 받고 수정 → 모든 이력이 Changelog와 Comments에 기록됨.
+
+#### Phase 2-B — UOI 드래그 재배치 (1주, v3.1 신규)
+
+> **합의 배경**: POI 설계는 본질적으로 재배치 작업. 포스트잇 워크숍 메타포와 일치.
+
+- [ ] **SortableJS 도입**: [`js/lib/Sortable.min.js`](../js/lib/) (vanilla, 의존성 없음, ~6KB gzip)
+- [ ] **MatrixView 확장**: [`js/matrix-view.js`](../js/matrix-view.js) 셀에 `data-unit-id`, `data-version`, `data-locked`, `data-owner` 속성 부여, `Sortable` 인스턴스 셀별 생성, `group: 'units'` 공유
+- [ ] **드래그 권한 가드** (프론트): 잠금 카드 비활성화(`filter`), 본인 소유 + 상태 검증, 시각적 자물쇠 표시
+- [ ] **GAS `moveUnit` API**: `POST {unit_id, new_grade, new_theme_id, new_order, expected_version}` → 권한 + 잠금 + version + 균형 + 학년군 5중 검증
+- [ ] **검증 결과 UX**: drop 시점 토스트(✅ 성공 / ⚠️ 균형/정합성 경고 / ❌ CONFLICT)
+- [ ] **롤백**: 서버 거부 시 SortableJS `onEnd`에서 원위치 애니메이션
+- [ ] **Changelog**: `action: 'move'`, `before/after` JSON에 `{grade, theme_id, order}` 기록
+- [ ] **순서 보존**: `Units` 시트에 `display_order` 컬럼 추가(같은 grade×theme 내 정렬용)
+
+**완료 기준**: 매트릭스에서 한 UOI를 다른 학년·TDT로 드래그 → 검증 통과 시 즉시 시트 반영 + 모든 사용자 매트릭스에 즉시 반영(다음 새로고침), 학년군 불일치 시 경고 배지 표시 후 재매핑 유도.
+
+#### Phase 2-C (선택) — 알림·필터 고도화 (0.5주)
+
+- [ ] 미해결 댓글 카운터 대시보드 위젯
+- [ ] 멘션 발생 시 메일 발송(opt-in)
+- [ ] 매트릭스 필터: '내가 멘션된', '미해결 댓글 있는', '드래그 잠금된'
+
+**완료 기준**: 한 UOI가 draft → in_review(팀 피드백) → approved → finalized 전체 경로를 거치며, 모든 단계 이력이 Changelog·Comments에 남고, 매트릭스에서 자유롭게 재배치 가능.
 
 ---
 
@@ -750,6 +850,10 @@ poi-builder/
 | R9  | IB 공식 용어 번역 표준 미확정           | 낮음   | 중     | 한·영 병기, 사용자 설정으로 커스터마이즈 허용                                     |
 | R10 | 2022 개정 성취기준 DB 구축 공수         | 중     | 높음   | Phase 3로 분리, 도덕 전학년만 먼저                                                |
 | R11 | 교사 학습 곡선                          | 중     | 중     | 5분 스크린캐스트 + 인라인 도움말 풍부하게                                         |
+| R12 | 댓글 폭발로 Comments 시트 행 한계 도달  | 중     | 중     | 학년도별 `Comments_Archive_<연도>` 자동 분리, 미해결만 활성 시트 유지 (v3.1)      |
+| R13 | 드래그 후 학년군 성취기준 무효화        | 높음   | 중     | drop 시점 학년군 검증 + ⚠️ 경고 배지로 재매핑 유도, Changelog `move` 기록 (v3.1) |
+| R14 | 멘션 알림 메일 스팸·할당량 초과         | 중     | 중     | 사용자별 opt-in 토글, 시간당 발송 빈도 제한 (v3.1)                                |
+| R15 | 권한 마이그레이션(reviewer→approver) 누락 | 중   | 낮음   | Phase 2-A 시작 시 일회성 마이그레이션 스크립트 + 검증 리포트 (v3.1)               |
 
 ---
 
@@ -859,3 +963,5 @@ _변경 이력:_
 - _v1.0 (2026-04-18): 초기 단일 사용자 버전_
 - _v2.0 (2026-04-18): 전문가 팀 협의 — GitHub Pages + GAS + Sheets 협업 구조 도입_
 - _v3.0 (2026-04-18): 최종 통합 — v1 도메인 지식 + v2 협업 아키텍처 병합_
+- _v3.1 (2026-04-27): IB 전문가 팀 라운드테이블 — (1) UOI 드래그 재배치 (Phase 2-B), (2) `commenter` 역할 신설 + 팀원 전체 피드백 (Phase 2-A), (3) `reviewer`→`approver` 개명, (4) Comments 스키마 확장(parent_id·anchor_field·mentions·reactions·resolved), (5) Changelog action 확장(move/comment/react/resolve), (6) Phase 2 1주 → 3주 확장_
+- _v3.2 (2026-04-28): Phase 2-B UOI 드래그 재배치 구현 완료 — SortableJS 도입, `Units.display_order` 컬럼 추가(`migrate_v3_2()`), `moveUnit` GAS API + 5중 검증(권한·잠금·낙관적락·TDT 균형·학년군 정합성), 매트릭스 셀 단위 Sortable 인스턴스, 자물쇠 배지·고스트 스타일, `Snapshots`도 `display_order` 컬럼 추가_

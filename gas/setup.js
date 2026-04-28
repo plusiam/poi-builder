@@ -48,11 +48,17 @@ function setupSheets_(ss) {
       'learner_profile', 'atl_skills', 'action', 'subject_links',
       'duration_weeks', 'notes', 'status', 'owner_email',
       'created_at', 'updated_at', 'updated_by', 'version', 'locked',
+      'display_order', // v3.2 — 같은 (grade, theme_id) 내 카드 정렬용
     ],
 
-    Users: ['email', 'display_name', 'role', 'assigned_grade', 'active', 'added_at'],
+    Users: ['email', 'display_name', 'role', 'assigned_grade', 'subject_tags', 'active', 'added_at'],
 
-    Comments: ['comment_id', 'unit_id', 'created_at', 'author_email', 'body'],
+    Comments: [
+      'comment_id', 'unit_id', 'parent_id', 'anchor_field',
+      'author_email', 'body', 'mentions', 'reactions',
+      'resolved', 'resolved_by', 'resolved_at',
+      'created_at', 'updated_at', 'deleted',
+    ],
 
     Changelog: [
       'change_id', 'unit_id', 'timestamp', 'actor_email',
@@ -65,6 +71,7 @@ function setupSheets_(ss) {
       'learner_profile', 'atl_skills', 'action', 'subject_links',
       'duration_weeks', 'notes', 'status', 'owner_email',
       'created_at', 'updated_at', 'updated_by', 'version', 'locked',
+      'display_order', // v3.2
       'snapshot_id', 'snapshot_at', 'snapshot_by',
     ],
 
@@ -229,4 +236,206 @@ function seedPOIMeta_(ss) {
 function setSpreadsheetId_(id) {
   PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', id);
   Logger.log('SPREADSHEET_ID 저장 완료: ' + id);
+}
+
+// ═══════════════════════════════════════════════════════════
+// v3.1 마이그레이션 (실데이터 보존)
+// 기존 Phase 0/1 환경에서 한 번만 실행하세요.
+//   - Users 시트에 subject_tags 컬럼 삽입
+//   - 기존 reviewer 사용자를 approver로 변경
+//   - Comments 시트에 신규 컬럼 추가 + 기존 행 기본값 보존
+// ═══════════════════════════════════════════════════════════
+
+function migrate_v3_1() {
+  const ss = getSpreadsheet_();
+  Logger.log('=== v3.1 마이그레이션 시작 ===');
+
+  migrateUsers_v3_1_(ss);
+  migrateComments_v3_1_(ss);
+
+  Logger.log('=== v3.1 마이그레이션 완료 ✅ ===');
+}
+
+function migrateUsers_v3_1_(ss) {
+  const sheet = ss.getSheetByName('Users');
+  if (!sheet) { Logger.log('  Users 시트 없음 — 건너뜀'); return; }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const targetHeaders = ['email', 'display_name', 'role', 'assigned_grade', 'subject_tags', 'active', 'added_at'];
+
+  // subject_tags 컬럼이 없으면 active 앞에 삽입
+  if (!headers.includes('subject_tags')) {
+    const activeIdx = headers.indexOf('active');
+    if (activeIdx === -1) {
+      Logger.log('  ⚠️ Users.active 컬럼이 없음 — 수동 점검 필요');
+    } else {
+      sheet.insertColumnBefore(activeIdx + 1);
+      sheet.getRange(1, activeIdx + 1).setValue('subject_tags');
+      Logger.log('  ✅ Users.subject_tags 컬럼 삽입');
+    }
+  } else {
+    Logger.log('  ↻ Users.subject_tags 이미 존재');
+  }
+
+  // reviewer → approver 일괄 변환
+  const map = {};
+  sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].forEach((h, i) => { map[h] = i; });
+  const data = sheet.getDataRange().getValues();
+  let converted = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][map.role] === 'reviewer') {
+      sheet.getRange(i + 1, map.role + 1).setValue('approver');
+      converted++;
+    }
+  }
+  Logger.log(`  ✅ reviewer → approver 변환: ${converted}명`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// v3.2 마이그레이션 (Phase 2-B, UOI 드래그 지원)
+//   - Units 시트에 display_order 컬럼 추가
+//   - 기존 단원에 created_at 순서로 0,1,2... 부여 (같은 grade×theme 내)
+//   - Snapshots 시트에도 display_order 컬럼 추가 (기존 행은 빈 값으로)
+// ═══════════════════════════════════════════════════════════
+
+function migrate_v3_2() {
+  const ss = getSpreadsheet_();
+  Logger.log('=== v3.2 마이그레이션 시작 ===');
+
+  migrateUnits_v3_2_(ss);
+  migrateSnapshots_v3_2_(ss);
+
+  Logger.log('=== v3.2 마이그레이션 완료 ✅ ===');
+}
+
+function migrateUnits_v3_2_(ss) {
+  const sheet = ss.getSheetByName('Units');
+  if (!sheet) { Logger.log('  Units 시트 없음 — 건너뜀'); return; }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  if (headers.includes('display_order')) {
+    Logger.log('  ↻ Units.display_order 이미 존재');
+  } else {
+    // 마지막 컬럼 뒤에 추가
+    const newCol = headers.length + 1;
+    sheet.getRange(1, newCol).setValue('display_order');
+    Logger.log(`  ✅ Units.display_order 컬럼 추가 (column ${newCol})`);
+  }
+
+  // 기존 단원에 display_order 부여 — 같은 (grade, theme_id) 내 created_at 순
+  const map = {};
+  sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .forEach((h, i) => { map[h] = i; });
+
+  const rows = sheet.getDataRange().getValues();
+  const groups = {};
+  for (let i = 1; i < rows.length; i++) {
+    const g = parseInt(rows[i][map.grade]);
+    const t = rows[i][map.theme_id];
+    const key = `${g}_${t}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({
+      rowIdx: i + 1,
+      created_at: rows[i][map.created_at] || '',
+      currentOrder: rows[i][map.display_order],
+    });
+  }
+
+  let assigned = 0;
+  Object.values(groups).forEach(items => {
+    items.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+    items.forEach((item, idx) => {
+      // 이미 값이 있으면 건너뜀 (재실행 안전)
+      if (item.currentOrder === '' || item.currentOrder === null || item.currentOrder === undefined) {
+        sheet.getRange(item.rowIdx, map.display_order + 1).setValue(idx);
+        assigned++;
+      }
+    });
+  });
+
+  Logger.log(`  ✅ display_order 값 할당: ${assigned}행`);
+}
+
+function migrateSnapshots_v3_2_(ss) {
+  const sheet = ss.getSheetByName('Snapshots');
+  if (!sheet) { Logger.log('  Snapshots 시트 없음 — 건너뜀'); return; }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.includes('display_order')) {
+    Logger.log('  ↻ Snapshots.display_order 이미 존재');
+    return;
+  }
+
+  // snapshot_id 컬럼 앞에 display_order 삽입 (없으면 마지막에 추가)
+  const snapIdIdx = headers.indexOf('snapshot_id');
+  if (snapIdIdx === -1) {
+    const newCol = headers.length + 1;
+    sheet.getRange(1, newCol).setValue('display_order');
+  } else {
+    sheet.insertColumnBefore(snapIdIdx + 1);
+    sheet.getRange(1, snapIdIdx + 1).setValue('display_order');
+  }
+  Logger.log('  ✅ Snapshots.display_order 컬럼 삽입');
+}
+
+function migrateComments_v3_1_(ss) {
+  const sheet = ss.getSheetByName('Comments');
+  if (!sheet) { Logger.log('  Comments 시트 없음 — 건너뜀'); return; }
+
+  const oldHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const targetHeaders = [
+    'comment_id', 'unit_id', 'parent_id', 'anchor_field',
+    'author_email', 'body', 'mentions', 'reactions',
+    'resolved', 'resolved_by', 'resolved_at',
+    'created_at', 'updated_at', 'deleted',
+  ];
+
+  // 이미 신규 스키마면 스킵
+  if (targetHeaders.every(h => oldHeaders.includes(h))) {
+    Logger.log('  ↻ Comments 시트 이미 v3.1 스키마');
+    return;
+  }
+
+  // 기존 데이터 추출
+  const rows = sheet.getDataRange().getValues();
+  const oldMap = {};
+  oldHeaders.forEach((h, i) => { oldMap[h] = i; });
+
+  // 시트 헤더 재구성
+  sheet.clear();
+  sheet.getRange(1, 1, 1, targetHeaders.length).setValues([targetHeaders]);
+  sheet.setFrozenRows(1);
+  const headerRange = sheet.getRange(1, 1, 1, targetHeaders.length);
+  headerRange.setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold');
+
+  // 기존 행 → 신규 스키마로 재기록
+  if (rows.length > 1) {
+    const newRows = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      newRows.push([
+        r[oldMap.comment_id] || Utilities.getUuid(),
+        r[oldMap.unit_id] || '',
+        '',                                    // parent_id
+        'unit',                                // anchor_field 기본
+        r[oldMap.author_email] || '',
+        r[oldMap.body] || '',
+        '[]',                                  // mentions
+        '{}',                                  // reactions
+        false,                                 // resolved
+        '',                                    // resolved_by
+        '',                                    // resolved_at
+        r[oldMap.created_at] || new Date().toISOString(),
+        r[oldMap.created_at] || new Date().toISOString(), // updated_at
+        false,                                 // deleted
+      ]);
+    }
+    if (newRows.length > 0) {
+      sheet.getRange(2, 1, newRows.length, targetHeaders.length).setValues(newRows);
+    }
+    Logger.log(`  ✅ Comments ${newRows.length}행 마이그레이션 완료`);
+  } else {
+    Logger.log('  ↻ Comments 시트 데이터 없음');
+  }
 }

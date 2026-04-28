@@ -59,8 +59,9 @@
     <div id="my-uoi-grid" class="uoi-cards"></div>
 
     <div class="full-matrix">
-      <div class="section-header">
-        <h2>전체 POI 매트릭스</h2>
+      <div class="section-header" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+        <h2 style="margin:0">전체 POI 매트릭스</h2>
+        <span class="matrix-drag-hint">카드를 끌어 학년·주제를 바꿀 수 있어요 (본인 단원, draft/in_review만)</span>
       </div>
       <div class="matrix-scroll">
         <div id="matrix-container"></div>
@@ -101,7 +102,7 @@
           <button type="button" class="tab-btn"        data-tab="tab-inquiry"  onclick="switchTab('tab-inquiry')">탐구 설계</button>
           <button type="button" class="tab-btn"        data-tab="tab-concepts" onclick="switchTab('tab-concepts')">개념 · 역량</button>
           <button type="button" class="tab-btn"        data-tab="tab-etc"      onclick="switchTab('tab-etc')">기타</button>
-          <button type="button" class="tab-btn"        data-tab="tab-feedback" onclick="switchTab('tab-feedback')" id="tab-btn-feedback">수석교사 피드백</button>
+          <button type="button" class="tab-btn"        data-tab="tab-feedback" onclick="switchTab('tab-feedback')" id="tab-btn-feedback">💬 팀 피드백</button>
         </div>
 
         <!-- 탭 1: 기본 정보 -->
@@ -135,7 +136,11 @@
             </div>
 
             <div class="form-group">
-              <label for="ed-central-idea">Central Idea <span style="color:var(--danger)">*</span></label>
+              <label for="ed-central-idea">
+                Central Idea <span style="color:var(--danger)">*</span>
+                <span class="anchor-badge" data-anchor-badge="central_idea"
+                  onclick="switchTab('tab-feedback')" title="이 필드의 미해결 댓글"></span>
+              </label>
               <textarea id="ed-central-idea" rows="3" placeholder="중심 아이디어를 진술문으로 작성하세요 (10~200자)" maxlength="200"
                 oninput="Validators.show('ed-central-idea', Validators.centralIdea(this.value))"></textarea>
               <div id="ed-central-idea-error" class="field-error">최소 10자 이상, 진술문으로 작성하세요</div>
@@ -150,7 +155,12 @@
           <div class="editor-section">
             <div class="form-group">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.375rem">
-                <label>Lines of Inquiry <span style="color:var(--danger)">*</span> <span style="color:var(--text-secondary);font-weight:400">(3~4개)</span></label>
+                <label>
+                  Lines of Inquiry <span style="color:var(--danger)">*</span>
+                  <span style="color:var(--text-secondary);font-weight:400">(3~4개)</span>
+                  <span class="anchor-badge" data-anchor-badge="loi"
+                    onclick="switchTab('tab-feedback')" title="LOI 관련 미해결 댓글"></span>
+                </label>
                 <button type="button" class="btn btn-ghost btn-sm" onclick="UOIEditor.addLOI()">+ 추가</button>
               </div>
               <div id="loi-list" class="loi-list"></div>
@@ -163,7 +173,12 @@
         <div id="tab-concepts" class="tab-panel">
           <div class="editor-section">
             <div class="form-group">
-              <label>Key Concepts <span style="color:var(--danger)">*</span> <span style="color:var(--text-secondary);font-weight:400">(최대 3개)</span></label>
+              <label>
+                Key Concepts <span style="color:var(--danger)">*</span>
+                <span style="color:var(--text-secondary);font-weight:400">(최대 3개)</span>
+                <span class="anchor-badge" data-anchor-badge="key_concepts"
+                  onclick="switchTab('tab-feedback')" title="Key Concepts 관련 미해결 댓글"></span>
+              </label>
               <div id="key-concepts-grid" class="checkbox-grid"></div>
               <div id="kc-error" class="field-error">Key Concept은 최대 3개입니다</div>
             </div>
@@ -178,7 +193,11 @@
         <div id="tab-etc" class="tab-panel">
           <div class="editor-section">
             <div class="form-group">
-              <label for="ed-action">Action <span style="color:var(--text-secondary);font-weight:400">(실천 기회)</span></label>
+              <label for="ed-action">
+                Action <span style="color:var(--text-secondary);font-weight:400">(실천 기회)</span>
+                <span class="anchor-badge" data-anchor-badge="action"
+                  onclick="switchTab('tab-feedback')" title="Action 관련 미해결 댓글"></span>
+              </label>
               <textarea id="ed-action" rows="3" placeholder="학생들이 취할 수 있는 실천 행동을 자유롭게 서술하세요"></textarea>
             </div>
             <div class="form-group">
@@ -191,14 +210,71 @@
             </div>
           </div>
         </div>
-        <!-- 탭 5: 수석교사 피드백 -->
+        <!-- 탭 5: 팀 피드백 (v3.1) -->
         <div id="tab-feedback" class="tab-panel">
           <div class="editor-section" id="feedback-section">
+
+            <!-- 필터 바 -->
+            <div class="feedback-toolbar" role="toolbar" aria-label="댓글 필터">
+              <div class="feedback-filters">
+                <button type="button" class="chip chip-active" data-filter="all">전체</button>
+                <button type="button" class="chip" data-filter="open">미해결</button>
+                <button type="button" class="chip" data-filter="resolved">해결됨</button>
+                <button type="button" class="chip" data-filter="mine">내 댓글</button>
+                <button type="button" class="chip" data-filter="mention">@나에게</button>
+              </div>
+              <div class="feedback-anchor-filter">
+                <label for="fb-anchor-filter" class="visually-hidden">필드별 보기</label>
+                <select id="fb-anchor-filter">
+                  <option value="all">모든 필드</option>
+                  <option value="unit">전체 단원</option>
+                  <option value="central_idea">Central Idea</option>
+                  <option value="loi">Lines of Inquiry</option>
+                  <option value="key_concepts">Key Concepts</option>
+                  <option value="subject_links">연계 교과</option>
+                  <option value="action">Action</option>
+                  <option value="retro">회고</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 빈 상태 -->
             <div class="feedback-empty" id="feedback-empty">
               <div style="font-size:2rem;margin-bottom:.5rem">💬</div>
-              <div>수석교사의 피드백이 없습니다</div>
+              <div>아직 팀 피드백이 없습니다</div>
+              <div style="font-size:.85rem;color:var(--text-secondary);margin-top:.25rem">
+                동료·전담 교사·코디네이터 누구나 댓글·이모지로 피드백할 수 있습니다.
+              </div>
             </div>
-            <div id="feedback-thread" class="comment-thread-teacher"></div>
+
+            <!-- 댓글 스레드 -->
+            <div id="feedback-thread" class="comment-thread"></div>
+
+            <!-- 작성 영역 -->
+            <div class="feedback-composer" id="feedback-composer">
+              <div class="composer-anchor-row">
+                <label for="fb-anchor" class="composer-label">위치</label>
+                <select id="fb-anchor">
+                  <option value="unit">전체 단원</option>
+                  <option value="central_idea">Central Idea</option>
+                  <option value="loi:0">LOI 1</option>
+                  <option value="loi:1">LOI 2</option>
+                  <option value="loi:2">LOI 3</option>
+                  <option value="loi:3">LOI 4</option>
+                  <option value="key_concepts">Key Concepts</option>
+                  <option value="subject_links">연계 교과</option>
+                  <option value="action">Action</option>
+                  <option value="retro">회고 (확정 후)</option>
+                </select>
+              </div>
+              <textarea id="fb-body" rows="3" maxlength="2000"
+                placeholder="피드백을 작성하세요. @이메일 로 멘션할 수 있습니다."></textarea>
+              <div class="composer-actions">
+                <span class="composer-hint" id="fb-hint"></span>
+                <button type="button" class="btn btn-primary btn-sm" id="fb-submit"
+                  onclick="Comments.submit()">댓글 달기</button>
+              </div>
+            </div>
           </div>
         </div>
       </form>
@@ -225,12 +301,15 @@
 </div>
 
 <script src="js/config.js"></script>
+<!-- SortableJS — UOI 드래그 재배치 (v3.2, Phase 2-B) -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="js/auth.js"></script>
 <script src="js/api.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/validators.js"></script>
 <script src="js/matrix-view.js"></script>
+<script src="js/comments.js"></script>
 <script src="js/uoi-editor.js"></script>
 <script src="js/main.js"></script>
 <script>
