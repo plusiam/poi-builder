@@ -57,8 +57,9 @@ const UOIEditor = (() => {
     _setVal('ed-unit-title', _unit.title || '');
     _setVal('ed-central-idea', _unit.central_idea || '');
 
-    // Lines of Inquiry
-    _renderLOI(Utils.parseJSON(_unit.lines_of_inquiry, ['', '', '']));
+    // Lines of Inquiry — v3.4: 선택 항목. 신규 단원이면 빈 배열로 시작 (편집 시는 기존 값 유지)
+    const existingLois = Utils.parseJSON(_unit.lines_of_inquiry, []);
+    _renderLOI(existingLois);
 
     // Key Concepts 체크박스
     _renderKeyConcepts(Utils.parseJSON(_unit.key_concepts, []));
@@ -96,19 +97,31 @@ const UOIEditor = (() => {
   function _renderLOI(lines) {
     const container = document.getElementById('loi-list');
     container.innerHTML = '';
-    lines.forEach((line, i) => {
-      const row = document.createElement('div');
-      row.className = 'loi-item';
-      row.innerHTML = `
-        <span style="font-size:.8rem;color:var(--text-secondary);width:20px;flex-shrink:0">${i + 1}</span>
-        <input type="text" class="loi-input" value="${_esc(line)}" placeholder="탐구 질문 또는 탐구 진술 ${i + 1}" maxlength="150">
-        <button type="button" class="remove-btn" onclick="UOIEditor.removeLOI(${i})" ${lines.length <= 3 ? 'disabled' : ''}>×</button>`;
-      container.appendChild(row);
-    });
+
+    // v3.4: 빈 배열도 허용. 비어 있으면 안내 + 추가 버튼만 노출
+    if (!lines || lines.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'loi-empty-hint';
+      empty.innerHTML = `
+        <span style="color:var(--text-secondary);font-size:.85rem">
+          탐구 질문 없이도 저장할 수 있습니다. 필요하면 우측 [+ 추가] 버튼으로 LOI를 더하세요.
+        </span>`;
+      container.appendChild(empty);
+    } else {
+      lines.forEach((line, i) => {
+        const row = document.createElement('div');
+        row.className = 'loi-item';
+        row.innerHTML = `
+          <span style="font-size:.8rem;color:var(--text-secondary);width:20px;flex-shrink:0">${i + 1}</span>
+          <input type="text" class="loi-input" value="${_esc(line)}" placeholder="탐구 질문 또는 탐구 진술 ${i + 1}" maxlength="150">
+          <button type="button" class="remove-btn" onclick="UOIEditor.removeLOI(${i})">×</button>`;
+        container.appendChild(row);
+      });
+    }
 
     // 팀 피드백 anchor 셀렉트도 LOI 개수에 맞춰 갱신
     if (typeof Comments !== 'undefined' && Comments.syncAnchorOptions) {
-      Comments.syncAnchorOptions(lines.length);
+      Comments.syncAnchorOptions((lines || []).length);
     }
   }
 
@@ -303,8 +316,8 @@ const UOIEditor = (() => {
   }
 
   function removeLOI(idx) {
+    // v3.4: 최소 개수 강제 해제 — 모두 지울 수 있음
     const inputs = document.querySelectorAll('.loi-input');
-    if (inputs.length <= 3) { Utils.toast('탐구 질문은 최소 3개입니다', 'warning'); return; }
     const lines = Array.from(inputs).map(el => el.value);
     lines.splice(idx, 1);
     _renderLOI(lines);

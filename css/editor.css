@@ -33,6 +33,14 @@
 .loi-item .remove-btn { flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--border);
   border-radius: 50%; background: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem; line-height: 1; }
 .loi-item .remove-btn:hover { background: #fce8e6; color: var(--danger); border-color: var(--danger); }
+.loi-empty-hint {
+  padding: .65rem .85rem;
+  background: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+  border-radius: var(--radius);
+  text-align: center;
+  line-height: 1.5;
+}
 
 /* ── 체크박스 그리드 ──────────────────────────────────────── */
 .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .5rem; }

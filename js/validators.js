@@ -9,10 +9,14 @@ const Validators = {
   },
 
   linesOfInquiry(arr) {
-    if (!arr || arr.length < 3) return { ok: false, msg: '탐구 질문은 3개 이상 작성하세요' };
+    // LOI는 선택 항목 (v3.4) — 비어 있어도 통과
+    if (!arr || arr.length === 0) return { ok: true };
     if (arr.length > 4) return { ok: false, msg: '탐구 질문은 최대 4개입니다' };
+    // 작성된 항목만 길이 검증 (5자 미만은 경고)
     for (const line of arr) {
-      if (!line || line.trim().length < 5) return { ok: false, msg: '각 탐구 질문은 5자 이상 작성하세요' };
+      if (line && line.trim().length > 0 && line.trim().length < 5) {
+        return { ok: false, warn: true, msg: '작성하실 거면 각 탐구 질문은 5자 이상 권장합니다' };
+      }
     }
     return { ok: true };
   },
