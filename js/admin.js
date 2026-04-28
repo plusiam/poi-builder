@@ -60,6 +60,7 @@ function showAdminSection(name) {
   if (name === 'export')    renderExport();
   if (name === 'users')     renderUsers();
   if (name === 'snapshots') renderSnapshots();
+  if (name === 'trash')     renderTrash();
 }
 
 // ── 대시보드 ─────────────────────────────────────────────
@@ -520,6 +521,112 @@ async function executeArchiveYear() {
 //
 // 현재 내보내기 범위 라디오/학년 선택을 그대로 query string으로 변환해
 // print.html을 새 창으로 연다. print.html이 자체적으로 데이터 로드 + 자동 인쇄.
+
+// ── 휴지통 (v3.3, Phase 4 후속) ─────────────────────────
+
+let _trashItems = [];
+
+async function renderTrash() {
+  const container = document.getElementById('trash-container');
+  if (!container) return;
+  container.innerHTML = `<div class="empty-state"><p>로드 중…</p></div>`;
+
+  try {
+    const items = await API.get('trash');
+    _trashItems = Array.isArray(items) ? items : [];
+
+    if (_trashItems.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">🗑️</div>
+          <p>휴지통이 비어 있습니다.</p>
+          <p style="font-size:.85rem;color:var(--text-secondary)">
+            단원 편집 모달에서 <strong>🗑️ 삭제</strong>를 누르면 이곳으로 이동합니다.
+          </p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">휴지통 단원 (${_trashItems.length})</h3>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="user-table trash-table">
+            <thead>
+              <tr>
+                <th>삭제 시각</th>
+                <th>삭제자</th>
+                <th>학년</th>
+                <th>주제</th>
+                <th>제목</th>
+                <th>상태</th>
+                <th style="text-align:right">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${_trashItems.map(u => `
+                <tr data-unit-id="${u.unit_id}">
+                  <td>${Utils.formatDate(u.deleted_at) || '—'}</td>
+                  <td>${(u.deleted_by || '').split('@')[0] || '—'}</td>
+                  <td>${u.grade}</td>
+                  <td>${THEMES_KO[u.theme_id] || u.theme_id}</td>
+                  <td>${u.title || '<span style="color:var(--text-secondary)">(제목 없음)</span>'}</td>
+                  <td><span class="badge ${Utils.statusClass(u.status)}">${Utils.statusLabel(u.status)}</span></td>
+                  <td style="text-align:right;white-space:nowrap">
+                    <button class="btn btn-ghost btn-sm" onclick="restoreTrashItem('${u.unit_id}')">↩️ 복원</button>
+                    <button class="btn btn-danger btn-sm" onclick="purgeTrashItem('${u.unit_id}')">🔥 영구삭제</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><p>휴지통 로드 실패: ${e.message}</p></div>`;
+  }
+}
+
+async function restoreTrashItem(unitId) {
+  const u = _trashItems.find(x => x.unit_id === unitId);
+  const title = u ? (u.title || '(제목 없음)') : unitId;
+  if (!confirm(`다음 단원을 복원할까요?\n\n${title}`)) return;
+
+  try {
+    await API.post('restoreUnit', { unit_id: unitId });
+    Utils.toast('단원을 복원했습니다', 'success');
+    await loadAdminData();   // _units 갱신
+    await renderTrash();
+  } catch (e) {
+    Utils.toast('복원 실패: ' + e.message, 'error');
+  }
+}
+
+async function purgeTrashItem(unitId) {
+  const u = _trashItems.find(x => x.unit_id === unitId);
+  const title = u ? (u.title || '(제목 없음)') : unitId;
+
+  // 영구 삭제 — 두 단계 확인
+  if (!confirm(`⚠️ 영구 삭제\n\n다음 단원을 완전히 제거합니다. 되돌릴 수 없습니다.\n\n${title}\n\n` +
+    `관련 코멘트도 모두 삭제 처리되며, Snapshots 시트의 사본은 그대로 보존됩니다.\n\n계속할까요?`)) return;
+
+  const confirmInput = prompt(`확인을 위해 단원 제목을 다시 입력해주세요:\n\n${title}`);
+  if (!confirmInput || confirmInput.trim() !== title) {
+    Utils.toast('확인 입력이 일치하지 않아 취소되었습니다', 'info');
+    return;
+  }
+
+  try {
+    const r = await API.post('purgeUnit', { unit_id: unitId });
+    Utils.toast(`✅ 영구 삭제 완료: ${title}`, 'success');
+    await loadAdminData();
+    await renderTrash();
+  } catch (e) {
+    if (e.code === 'FORBIDDEN') Utils.toast('영구 삭제는 admin만 가능합니다', 'error');
+    else Utils.toast('영구 삭제 실패: ' + e.message, 'error');
+  }
+}
 
 function openPrintView() {
   const scopeEl = document.querySelector('input[name="export-scope"]:checked');

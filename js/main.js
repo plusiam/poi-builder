@@ -123,7 +123,13 @@ function openUOI(unitId) {
   const unit = _units.find(u => u.unit_id === unitId);
   if (!unit) return;
   UOIEditor.open(unit, _constants, _userRole, async (saved) => {
-    // 저장 후 로컬 업데이트
+    // 휴지통으로 이동된 경우 로컬 목록에서 제거
+    if (saved && saved.deleted === true) {
+      _units = _units.filter(u => u.unit_id !== saved.unit_id);
+      renderHome();
+      return;
+    }
+    // 일반 저장 후 로컬 업데이트
     const idx = _units.findIndex(u => u.unit_id === saved.unit_id);
     if (idx >= 0) Object.assign(_units[idx], saved);
     renderHome();

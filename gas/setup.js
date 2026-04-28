@@ -48,7 +48,8 @@ function setupSheets_(ss) {
       'learner_profile', 'atl_skills', 'action', 'subject_links',
       'duration_weeks', 'notes', 'status', 'owner_email',
       'created_at', 'updated_at', 'updated_by', 'version', 'locked',
-      'display_order', // v3.2 — 같은 (grade, theme_id) 내 카드 정렬용
+      'display_order', // v3.2
+      'deleted', 'deleted_at', 'deleted_by', // v3.3 — 휴지통/영구삭제
     ],
 
     Users: ['email', 'display_name', 'role', 'assigned_grade', 'subject_tags', 'active', 'added_at'],
@@ -306,6 +307,42 @@ function migrate_v3_2() {
   migrateSnapshots_v3_2_(ss);
 
   Logger.log('=== v3.2 마이그레이션 완료 ✅ ===');
+}
+
+// ═══════════════════════════════════════════════════════════
+// v3.3 마이그레이션 (Phase 4 후속, 휴지통)
+//   - Units 시트에 deleted, deleted_at, deleted_by 컬럼 추가
+//   - 기존 단원의 deleted 값은 빈 문자열(=false 취급)
+//   - 재실행 안전 (이미 컬럼이 있으면 건너뜀)
+// ═══════════════════════════════════════════════════════════
+
+function migrate_v3_3() {
+  const ss = getSpreadsheet_();
+  Logger.log('=== v3.3 마이그레이션 시작 ===');
+  migrateUnits_v3_3_(ss);
+  Logger.log('=== v3.3 마이그레이션 완료 ✅ ===');
+}
+
+function migrateUnits_v3_3_(ss) {
+  const sheet = ss.getSheetByName('Units');
+  if (!sheet) { Logger.log('  Units 시트 없음 — 건너뜀'); return; }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const newCols = ['deleted', 'deleted_at', 'deleted_by'];
+  let added = 0;
+
+  newCols.forEach(name => {
+    if (headers.includes(name)) {
+      Logger.log(`  ↻ Units.${name} 이미 존재`);
+      return;
+    }
+    const newCol = sheet.getLastColumn() + 1;
+    sheet.getRange(1, newCol).setValue(name);
+    added++;
+    Logger.log(`  ✅ Units.${name} 컬럼 추가 (column ${newCol})`);
+  });
+
+  if (added === 0) Logger.log('  ↻ v3.3 컬럼 모두 존재 — 변경 없음');
 }
 
 function migrateUnits_v3_2_(ss) {

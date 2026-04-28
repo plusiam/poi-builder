@@ -34,6 +34,9 @@
     <div class="nav-item" data-section="snapshots" onclick="showAdminSection('snapshots')">
       <span class="icon">📸</span> 스냅샷
     </div>
+    <div class="nav-item" data-section="trash" onclick="showAdminSection('trash')">
+      <span class="icon">🗑️</span> 휴지통
+    </div>
   </nav>
   <div class="sidebar-footer">남부초 IB PYP · 2026</div>
 </aside>
@@ -235,6 +238,18 @@
           </table>
         </div>
       </div>
+    </div>
+
+    <!-- ── 휴지통 (v3.3, Phase 4 후속) ────────────────────── -->
+    <div id="section-trash" class="admin-section">
+      <div class="trash-header">
+        <h3 style="margin:0">🗑️ 휴지통</h3>
+        <p class="trash-desc">
+          삭제된 단원이 보관됩니다. <strong>복원</strong>으로 되살리거나 <strong>영구 삭제</strong>로 완전히 제거할 수 있습니다.
+          <br>관리자는 모든 단원을, 일반 사용자는 본인이 삭제한 단원만 볼 수 있습니다.
+        </p>
+      </div>
+      <div id="trash-container"></div>
     </div>
 
     <!-- ── 스냅샷 ─────────────────────────────────────────── -->

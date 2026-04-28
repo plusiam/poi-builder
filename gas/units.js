@@ -24,10 +24,11 @@ function getConstants(params, email) {
 }
 
 // ── UOI 목록 · 상세 ────────────────────────────────────────
+// 기본 조회는 deleted=true 행을 제외한다 (v3.3, 휴지통)
 
 function getUnits(params, email) {
   requireRole_(email, 'viewer');
-  return sheetToArray_('Units');
+  return sheetToArray_('Units').filter(u => u.deleted !== true);
 }
 
 function getUnit(unitId, email) {
@@ -37,7 +38,7 @@ function getUnit(unitId, email) {
 
 function getDashboard(params, email) {
   requireRole_(email, 'admin');
-  const units = sheetToArray_('Units');
+  const units = sheetToArray_('Units').filter(u => u.deleted !== true);
   const total = units.length;
   const byStatus = units.reduce((acc, u) => { acc[u.status] = (acc[u.status] || 0) + 1; return acc; }, {});
   return { total, byStatus, units };
@@ -97,6 +98,7 @@ function updateUnit(params, email) {
 
   const { sheet, rowIdx, data, map } = findUnitRow_(unit_id);
 
+  if (data[map.deleted] === true) throw appError_('LOCKED', '휴지통에 있는 단원은 수정할 수 없습니다. 먼저 복원하세요.');
   if (data[map.locked] === true) throw appError_('LOCKED', '확정된 UOI는 수정할 수 없습니다');
   if (data[map.status] === 'finalized') throw appError_('LOCKED', '확정된 UOI는 수정할 수 없습니다');
 
@@ -133,6 +135,169 @@ function updateUnit(params, email) {
     diff_summary: `필드 수정: ${Object.keys(fields).join(', ')}` });
 
   return { unit_id, version: newVersion };
+}
+
+// ── UOI 휴지통 / 영구삭제 (v3.3, Phase 4 후속) ────────────
+//
+// 정책:
+//   소프트 삭제 (deleteUnit)
+//     - 권한: editor 이상 + (소유자 또는 admin)
+//     - 상태 제한: finalized/archived/locked 단원은 거부 (먼저 unlock 필요)
+//     - 동작: deleted=true, deleted_at=now, deleted_by=email
+//             버전(version)도 +1 해서 낙관적 락 흐름 유지
+//
+//   복원 (restoreUnit)
+//     - 권한: 소유자 또는 admin
+//     - 동작: deleted=false, deleted_at='', deleted_by=''
+//
+//   영구 삭제 (purgeUnit)
+//     - 권한: admin 전용
+//     - 사전 조건: deleted=true 인 단원만 가능 (먼저 휴지통으로 이동되어야 함)
+//     - 동작: Units 행 삭제 + 해당 unit_id 코멘트 모두 deleted=true 마킹
+//             스냅샷은 그대로 보존 (감사 추적)
+//
+//   휴지통 조회 (getTrash)
+//     - 권한: viewer 이상 (admin은 전체, 일반은 본인 것만)
+
+function deleteUnit(params, email) {
+  const role = requireRole_(email, 'editor');
+  if (!params.unit_id) throw appError_('VALIDATION', 'unit_id가 필요합니다');
+
+  const { sheet, rowIdx, data, map } = findUnitRow_(params.unit_id);
+
+  if (data[map.deleted] === true) {
+    return { unit_id: params.unit_id, deleted: true, already: true };
+  }
+  if (data[map.locked] === true) throw appError_('LOCKED', '확정 잠금된 단원은 삭제할 수 없습니다. 먼저 잠금 해제하세요.');
+  const status = data[map.status];
+  if (status === 'finalized' || status === 'archived') {
+    throw appError_('LOCKED', `'${status}' 상태의 단원은 삭제할 수 없습니다.`);
+  }
+  if (role !== 'admin' && data[map.owner_email] !== email) {
+    throw appError_('FORBIDDEN', '본인 소유 단원만 삭제할 수 있습니다');
+  }
+
+  const ts = now_();
+  sheet.getRange(rowIdx, map.deleted + 1).setValue(true);
+  sheet.getRange(rowIdx, map.deleted_at + 1).setValue(ts);
+  sheet.getRange(rowIdx, map.deleted_by + 1).setValue(email);
+  sheet.getRange(rowIdx, map.updated_at + 1).setValue(ts);
+  sheet.getRange(rowIdx, map.updated_by + 1).setValue(email);
+  if (map.version !== undefined) {
+    const v = parseInt(data[map.version]) || 1;
+    sheet.getRange(rowIdx, map.version + 1).setValue(v + 1);
+  }
+
+  appendChangelog_({
+    unit_id: params.unit_id,
+    actor_email: email,
+    action: 'delete',
+    field: 'deleted',
+    before_value: 'false',
+    after_value: 'true',
+    diff_summary: '휴지통으로 이동',
+  });
+
+  return { unit_id: params.unit_id, deleted: true };
+}
+
+function restoreUnit(params, email) {
+  const role = requireRole_(email, 'editor');
+  if (!params.unit_id) throw appError_('VALIDATION', 'unit_id가 필요합니다');
+
+  const { sheet, rowIdx, data, map } = findUnitRow_(params.unit_id);
+
+  if (data[map.deleted] !== true) {
+    return { unit_id: params.unit_id, deleted: false, already: true };
+  }
+  if (role !== 'admin' && data[map.owner_email] !== email) {
+    throw appError_('FORBIDDEN', '본인 소유 단원만 복원할 수 있습니다');
+  }
+
+  const ts = now_();
+  sheet.getRange(rowIdx, map.deleted + 1).setValue(false);
+  sheet.getRange(rowIdx, map.deleted_at + 1).setValue('');
+  sheet.getRange(rowIdx, map.deleted_by + 1).setValue('');
+  sheet.getRange(rowIdx, map.updated_at + 1).setValue(ts);
+  sheet.getRange(rowIdx, map.updated_by + 1).setValue(email);
+
+  appendChangelog_({
+    unit_id: params.unit_id,
+    actor_email: email,
+    action: 'restore',
+    field: 'deleted',
+    before_value: 'true',
+    after_value: 'false',
+    diff_summary: '휴지통에서 복원',
+  });
+
+  return { unit_id: params.unit_id, deleted: false };
+}
+
+function purgeUnit(params, email) {
+  requireRole_(email, 'admin');
+  if (!params.unit_id) throw appError_('VALIDATION', 'unit_id가 필요합니다');
+
+  const { sheet, rowIdx, data, map } = findUnitRow_(params.unit_id);
+
+  // 영구 삭제는 휴지통(deleted=true)에서만 가능
+  if (data[map.deleted] !== true) {
+    throw appError_('VALIDATION', '먼저 휴지통으로 이동(소프트 삭제)한 단원만 영구 삭제할 수 있습니다');
+  }
+
+  const unitSnapshot = {
+    unit_id: data[map.unit_id],
+    grade: data[map.grade],
+    theme_id: data[map.theme_id],
+    title: data[map.title],
+    status: data[map.status],
+  };
+
+  // 1) 관련 코멘트 소프트 삭제 마킹 (감사 추적 유지, 행은 삭제하지 않음)
+  try {
+    const cSheet = getSheet_('Comments');
+    const cMap = headerMap_(cSheet);
+    const cData = cSheet.getDataRange().getValues();
+    let cleared = 0;
+    for (let i = 1; i < cData.length; i++) {
+      if (cData[i][cMap.unit_id] === params.unit_id && cData[i][cMap.deleted] !== true) {
+        cSheet.getRange(i + 1, cMap.deleted + 1).setValue(true);
+        cSheet.getRange(i + 1, cMap.updated_at + 1).setValue(now_());
+        cleared++;
+      }
+    }
+    Logger.log(`purgeUnit: ${cleared} comments marked deleted for ${params.unit_id}`);
+  } catch (e) {
+    Logger.log(`purgeUnit comment cleanup error: ${e.message}`);
+  }
+
+  // 2) Changelog 기록 (Units 행 삭제 전에)
+  appendChangelog_({
+    unit_id: params.unit_id,
+    actor_email: email,
+    action: 'purge',
+    field: '*',
+    before_value: JSON.stringify(unitSnapshot),
+    after_value: '',
+    diff_summary: `영구 삭제: ${unitSnapshot.grade}학년 / ${unitSnapshot.theme_id} / ${unitSnapshot.title || '(제목 없음)'}`,
+  });
+
+  // 3) Units 행 영구 삭제
+  sheet.deleteRow(rowIdx);
+
+  return { unit_id: params.unit_id, purged: true, removed_unit: unitSnapshot };
+}
+
+function getTrash(params, email) {
+  const role = requireRole_(email, 'viewer');
+  const all = sheetToArray_('Units').filter(u => u.deleted === true);
+
+  // admin은 전체, 그 외는 본인 소유만
+  const visible = role === 'admin' ? all : all.filter(u => u.owner_email === email);
+
+  return visible.sort((a, b) =>
+    String(b.deleted_at || '').localeCompare(String(a.deleted_at || ''))
+  );
 }
 
 // ── UOI 드래그 이동 (Phase 2-B, v3.2) ─────────────────────

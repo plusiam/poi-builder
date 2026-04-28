@@ -6,10 +6,10 @@
 
 | 항목 | 값 |
 | ---- | ---- |
-| 문서 버전 | 1.1 (v3.2 스키마 시점) |
+| 문서 버전 | 1.2 (v3.3 스키마 시점) |
 | 최종 갱신 | 2026-04-28 |
-| 적용 GAS 버전 | Phase 2-A + Phase 2-B (`commenter` 역할 + 댓글 시스템 + UOI 드래그) |
-| 마이그레이션 함수 | `migrate_v3_1()` → `migrate_v3_2()` (각각 실데이터 보존) |
+| 적용 GAS 버전 | Phase 2-A/B + Phase 4 (댓글 / 드래그 / 학년도 롤오버 / 인쇄 / 휴지통) |
+| 마이그레이션 함수 | `migrate_v3_1()` → `migrate_v3_2()` → `migrate_v3_3()` (각각 실데이터 보존) |
 | 풀 셋업 함수 | `setupAll()` / `setupStandalone()` (신규 환경 전용 — 기존 데이터 삭제됨) |
 
 ---
@@ -19,7 +19,7 @@
 | 시트명                       | 역할                          | 예상 규모 | v3.1 변경 |
 | ---------------------------- | ----------------------------- | --------- | --------- |
 | `POI_Meta`                   | 학교·연도·버전 메타           | 1~수 행   | -         |
-| `Units`                      | UOI 본체                      | 36~72 행  | **v3.2: `display_order` 추가** |
+| `Units`                      | UOI 본체                      | 36~72 행  | **v3.2: `display_order` / v3.3: `deleted`·`deleted_at`·`deleted_by`** |
 | `Users`                      | 이메일·이름·역할              | 10~30 행  | **`subject_tags` 추가, role enum 확장** |
 | `Comments`                   | UOI별 댓글 (스레드·앵커·반응) | 100~수천  | **9개 컬럼 신규 추가, 스키마 재구성** |
 | `Changelog`                  | 모든 변경 기록                | 수백~수천 | **`action` enum 확장 (move/comment/react/resolve/mention)** |
@@ -102,6 +102,12 @@
 | `locked` | boolean | 확정 후 잠금 여부 |
 
 > **v3.2 추가** (Phase 2-B 완료): `display_order` (number) 컬럼 — 같은 `(grade, theme_id)` 내 카드 순서. 드래그 정렬 시 0,1,2... 로 정규화. 마이그레이션 시 기존 단원에 `created_at` 순서로 자동 부여.
+>
+> **v3.3 추가** (Phase 4 후속, 휴지통):
+> - `deleted` (boolean) — 휴지통 플래그. 기본 조회는 `deleted!==true`만 노출.
+> - `deleted_at` (datetime ISO) — 삭제(휴지통 이동) 시각.
+> - `deleted_by` (string) — 삭제자 이메일.
+> - 영구 삭제 시 행 자체가 사라지므로 위 3개 컬럼은 의미 없어짐 — Snapshots와 Changelog에 흔적이 남음.
 
 ### 3.3 `Users` (v3.1 변경)
 
@@ -181,6 +187,10 @@
 | `react` | 이모지 반응 토글 | ✅ Phase 2-A |
 | `resolve` | 댓글 해결 토글 | ✅ Phase 2-A |
 | `mention` | 멘션 발생 (per 멘션 1행) | ✅ Phase 2-A |
+| `archive` | 학년도 롤오버 (일괄 아카이브) | ✅ Phase 4 |
+| `delete`  | 휴지통으로 이동 (소프트 삭제) | ✅ v3.3 |
+| `restore` | 휴지통에서 복원 | ✅ v3.3 |
+| `purge`   | 영구 삭제 (admin only, Units 행 제거) | ✅ v3.3 |
 
 ### 3.6 `Snapshots`
 
@@ -281,3 +291,4 @@ GAS 에디터에서 migrate_v3_2() 실행
 
 - **v1.0** (2026-04-27): v3.1 스키마(`commenter` 역할, Comments 확장, `action` enum 확장) 기준으로 신규 작성. v3.0 → v3.1 마이그레이션 가이드 포함.
 - **v1.1** (2026-04-28): v3.2 스키마 반영 — `Units.display_order` / `Snapshots.display_order` 추가, `migrate_v3_2()` 함수, `moveUnit` API 5중 검증 표 추가.
+- **v1.2** (2026-04-28): v3.3 스키마 반영 — `Units.deleted` / `deleted_at` / `deleted_by` 컬럼 추가, `migrate_v3_3()` 함수, 휴지통 API(deleteUnit/restoreUnit/purgeUnit/getTrash) + Changelog action enum 4종(archive/delete/restore/purge) 추가.

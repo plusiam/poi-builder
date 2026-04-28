@@ -11,6 +11,7 @@ const ACTIONS_GET = {
   changelog:  (p, email) => getChangelog(p.unitId, email),
   snapshots:  (p, email) => getSnapshots(p, email),
   comments:   (p, email) => getComments({ unit_id: p.unitId || p.unit_id }, email),
+  trash:      (p, email) => getTrash(p, email),  // v3.3 — 휴지통 목록
   export:     (p, email) => handleExport(p, email),
 };
 
@@ -25,6 +26,10 @@ const ACTIONS_POST = {
   finalizeUnit:   (p, email) => finalizeUnit(p, email),
   unlockUnit:     (p, email) => unlockUnit(p, email),
   archiveYear:    (p, email) => archiveYear(p, email),  // v3.3 — Phase 4 연도 롤오버
+  // 휴지통 (v3.3, Phase 4 후속)
+  deleteUnit:     (p, email) => deleteUnit(p, email),
+  restoreUnit:    (p, email) => restoreUnit(p, email),
+  purgeUnit:      (p, email) => purgeUnit(p, email),
   // 댓글 시스템 (v3.1, Phase 2-A)
   addComment:     (p, email) => addComment(p, email),
   updateComment:  (p, email) => updateComment(p, email),

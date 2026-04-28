@@ -170,7 +170,39 @@ const UOIEditor = (() => {
     const submitBtn = !isNew && _unit.status === 'draft'
       ? `<button class="btn btn-outline" onclick="UOIEditor.submitReview()">검토 요청</button>` : '';
 
-    container.innerHTML = saveBtn + submitBtn;
+    // 휴지통 버튼 — 신규/확정/아카이브가 아닌 경우만 노출 (v3.3)
+    const trashable = !isNew && _unit.unit_id
+      && _unit.status !== 'finalized' && _unit.status !== 'archived' && _unit.locked !== true;
+    const trashBtn = trashable
+      ? `<button class="btn btn-ghost btn-trash" onclick="UOIEditor.trash()" title="휴지통으로 이동">🗑️ 삭제</button>`
+      : '';
+
+    container.innerHTML = trashBtn + saveBtn + submitBtn;
+  }
+
+  async function trash() {
+    if (!_unit || !_unit.unit_id) return;
+    const title = _unit.title || _unit.central_idea || '(제목 없음)';
+    if (!confirm(`이 단원을 휴지통으로 이동할까요?\n\n${title}\n\n관리자 페이지의 휴지통에서 30일 안에 복원하거나 영구 삭제할 수 있습니다.`)) return;
+
+    const trashBtnEl = document.querySelector('#editor-action-btns .btn-trash');
+    if (trashBtnEl) Utils.setLoading(trashBtnEl, true);
+
+    try {
+      await API.post('deleteUnit', { unit_id: _unit.unit_id });
+      Utils.toast('휴지통으로 이동했습니다', 'success');
+      _unit.deleted = true;
+      _isDirty = false;
+      if (_onSave) _onSave({ ..._unit, deleted: true });
+      // 모달 닫기 (강제 — _isDirty=false라 confirm 안 뜸)
+      document.getElementById('editor-modal').classList.remove('show');
+    } catch (e) {
+      if (e.code === 'LOCKED') Utils.toast('이 단원은 삭제할 수 없습니다: ' + e.message, 'error');
+      else if (e.code === 'FORBIDDEN') Utils.toast('본인 소유 단원만 삭제할 수 있어요', 'error');
+      else Utils.toast('삭제 실패: ' + e.message, 'error');
+    } finally {
+      if (trashBtnEl) Utils.setLoading(trashBtnEl, false);
+    }
   }
 
   function _validateKeyConcepts() {
@@ -288,7 +320,7 @@ const UOIEditor = (() => {
     return String(str || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   }
 
-  return { open, close, save, submitReview, addLOI, removeLOI };
+  return { open, close, save, submitReview, addLOI, removeLOI, trash };
 })();
 
 function switchTab(tabId) {

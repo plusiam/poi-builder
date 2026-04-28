@@ -305,3 +305,23 @@
   line-height: 1.5;
   margin-bottom: .75rem;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   휴지통 (v3.3, Phase 4 후속)
+   ═══════════════════════════════════════════════════════════ */
+
+.trash-header {
+  margin-bottom: 1rem;
+}
+.trash-desc {
+  font-size: .87rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: .35rem;
+}
+.trash-table td button {
+  margin-left: .25rem;
+}
+.trash-table tbody tr:hover {
+  background: #fafbfc;
+}
