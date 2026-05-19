@@ -53,6 +53,7 @@ function doPost(e) {
 }
 
 function route_(e, actions, method) {
+  let lock = null;
   try {
     const action = (e.parameter || {}).action;
     if (!action) return error_('VALIDATION', 'action 파라미터가 없습니다');
@@ -67,6 +68,17 @@ function route_(e, actions, method) {
       ? JSON.parse((e.postData || {}).contents || '{}')
       : (e.parameter || {});
 
+    // 쓰기 요청은 스크립트 락으로 직렬화한다.
+    // 낙관적 락(version 검사)의 read-check-write 사이에 다른 요청이 끼어들면
+    // 두 요청이 모두 version 검증을 통과해 한쪽 변경이 유실될 수 있다.
+    if (method === 'POST') {
+      lock = LockService.getScriptLock();
+      if (!lock.tryLock(20000)) {
+        lock = null;
+        return error_('BUSY', '다른 저장 작업이 진행 중입니다. 잠시 후 다시 시도하세요.');
+      }
+    }
+
     const result = handler(params, email);
     return ok_(result);
 
@@ -74,6 +86,8 @@ function route_(e, actions, method) {
     Logger.log(`[ERROR] ${err.message}\n${err.stack}`);
     if (err.code_) return error_(err.code_, err.message);
     return error_('INTERNAL', err.message);
+  } finally {
+    if (lock) lock.releaseLock();
   }
 }
 

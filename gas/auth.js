@@ -15,6 +15,10 @@
 const ROLES = { viewer: 0, commenter: 1, editor: 2, approver: 3, admin: 4 };
 const ROLE_ALIASES = { reviewer: 'approver' };
 
+// 이 앱의 Google OAuth 클라이언트 ID — js/config.js의 CLIENT_ID와 반드시 동일해야 함.
+// ID 토큰의 aud 클레임이 이 값과 일치하는지 검증하는 데 쓰인다.
+const OAUTH_CLIENT_ID = '765011963306-kqn8oqgmdu94mcjbvl91m64u2663f2j3.apps.googleusercontent.com';
+
 // Google ID Token 검증 → 이메일 반환 (실패 시 null)
 function verifyToken_(e) {
   try {
@@ -29,6 +33,11 @@ function verifyToken_(e) {
     if (res.getResponseCode() !== 200) return null;
 
     const info = JSON.parse(res.getContentText());
+
+    // aud(audience) 검증 — 이 앱용으로 발급된 토큰만 허용.
+    // 없으면 다른 Google OAuth 앱의 토큰으로도 인증을 통과할 수 있다.
+    if (info.aud !== OAUTH_CLIENT_ID) return null;
+
     return info.email || null;
   } catch (_) {
     return null;
